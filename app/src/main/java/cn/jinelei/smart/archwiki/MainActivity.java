@@ -5,6 +5,7 @@ import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.KeyEvent;
+import android.view.View;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -18,19 +19,19 @@ import androidx.core.content.ContextCompat;
 import com.getbase.floatingactionbutton.FloatingActionButton;
 import com.getbase.floatingactionbutton.FloatingActionsMenu;
 
+import java.util.concurrent.CountDownLatch;
+
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 
 public class MainActivity extends AppCompatActivity {
 	private static final String TAG = "MainActivity";
-	//	private static final String ARCH_URI = "https://wiki.archlinux.org/";
-	public static final String ARCH_URI = "https://www.jianshu.com/p/39a6f7252b6a?utm_campaign";
-	private static final String js =
-		"(function(){\n" +
-			" document.querySelector('input#searchInput').value = 'asdf'\n" +
-			" window.onload = function(){" +
-			" document.querySelector('input#searchInput').value = 'asdf'\n" +
-			"}\n" +
-			"}())";
+	private static final String ARCH_URI = "https://wiki.archlinux.org/";
+	//	private static final String ARCH_URI = "https://m.baidu.com";
+	private static final String JS_SRC_RULE = "var obj = document.createElement(\"script\");"
+		+ "obj.type=\"text/javascript\";"
+		+ "obj.src=\"%s\";"
+		+ "document.body.appendChild(obj);";
+	private CountDownLatch loadJavaScript = new CountDownLatch(1);
 	private FloatingActionsMenu fabMenu;
 	private FloatingActionButton fab1;
 	private FloatingActionButton fab2;
@@ -52,6 +53,8 @@ public class MainActivity extends AppCompatActivity {
 	}
 	
 	private void initEvent() {
+		webview.setHorizontalScrollBarEnabled(false);
+		webview.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
 		webview.setWebViewClient(new WebViewClient() {
 			@Override
 			public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
@@ -79,22 +82,45 @@ public class MainActivity extends AppCompatActivity {
 			public void onPageFinished(WebView view, String url) {
 				super.onPageFinished(view, url);
 				Log.d(TAG, "onPageFinished: ");
-				view.postDelayed(() -> {
-					Log.d(TAG, "onPageFinished: start inject js script");
-//					String insertJavaScript = "javascript:(function() { "
-//						+ "document.body.style.display = none; })();";
-					String insertJavaScript = "javascript: alert('asdfasdf')";
-					view.loadUrl(insertJavaScript);
-				}, 1000);
+				if (loadJavaScript.getCount() > 0L) {
+					view.postDelayed(() -> {
+						loadJavaScript.countDown();
+						Log.d(TAG, "onPageFinished: start inject js script");
+						view.loadUrl(injectJs());
+					}, 1000);
+				} else {
+					loadJavaScript = new CountDownLatch(1);
+				}
 				fabMenu.setEnabled(true);
 				if (fabMenu.isExpanded()) {
 					fabMenu.collapseImmediately();
-//					view.loadUrl("javascript: alert('asdfasdfasdf')");
 				}
 			}
 		});
-		WebSettings webSettings = webview.getSettings();
-		webSettings.setUseWideViewPort(true);
+		WebSettings setting = webview.getSettings();
+		setting.setUseWideViewPort(true);
+		setting.setJavaScriptEnabled(true);
+		setting.setUseWideViewPort(true);
+		setting.setSupportZoom(true);
+		setting.setBuiltInZoomControls(true);
+		setting.setDisplayZoomControls(false);
+		setting.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.SINGLE_COLUMN);
+		setting.setLoadWithOverviewMode(true);
+		
+		setting.setCacheMode(WebSettings.LOAD_DEFAULT);
+		setting.setDatabaseEnabled(false);
+		setting.setAppCacheEnabled(false);
+		setting.setDomStorageEnabled(false);
+		setting.setGeolocationEnabled(true);
+		//安全性相关,默认先屏蔽
+		setting.setSaveFormData(false);
+		setting.setDomStorageEnabled(false);
+		setting.setAllowFileAccess(false);
+		setting.setSavePassword(false);
+		fab3.setOnClickListener(v -> {
+			Log.d(TAG, "initEvent: webview reload");
+			webview.reload();
+		});
 	}
 	
 	private void initView() {
@@ -119,6 +145,13 @@ public class MainActivity extends AppCompatActivity {
 		}
 	}
 	
+	public String injectJs() {
+		return "javascript:" +
+			String.format(JS_SRC_RULE, "document.body.style.display = 'none'");
+//			"document.getElementById('logo').style.display = 'none';" +
+//			"document.body.appendChild(document.createElement(\"script\"));";
+//		"document.querySelector('input#searchInput').value = 'asdf'" +
+	}
 	
 	@Override
 	public boolean onKeyUp(int keyCode, KeyEvent event) {
