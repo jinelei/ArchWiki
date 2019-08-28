@@ -1,0 +1,23 @@
+<html>
+<head>
+    <title>test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+<h1>this is test page</h1>
+<div id="content">content</div>
+<a onClick="window.javaScriptInterface.startFunction()">点击调用java代码</a><br/>
+<a onClick="window.javaScriptInterface.startFunction('hello world')">点击调用java代码并传递参数</a>
+<!--<script src="./js/index.js"/>-->
+<script>
+function callJS() {
+    return 'return from js';
+}
+
+function appendContent(var content) {
+    document.getElementById("content").innerHTML += content;
+    return 'asdf';
+}
+</script>
+</body>
+</html>
