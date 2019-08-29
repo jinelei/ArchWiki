@@ -8,6 +8,8 @@ import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
 import android.view.KeyEvent;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.webkit.JavascriptInterface;
 import android.webkit.JsPromptResult;
@@ -29,6 +31,8 @@ import androidx.core.content.ContextCompat;
 import com.getbase.floatingactionbutton.FloatingActionButton;
 import com.getbase.floatingactionbutton.FloatingActionsMenu;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
 import cn.jinelei.smart.archwiki.intf.IJavaScriptInterface;
@@ -37,48 +41,22 @@ import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 
 public class MainActivity extends AppCompatActivity {
 	private static final String TAG = "MainActivity";
-	//	private static final String ARCH_URI = "file:///android_asset/web/index.html";
-	private static final String ARCH_URI = "https://wiki.archlinux.org/";
-	//	private static final String JS_SRC_RULE = "var obj = document.createElement(\"script\");"
-//		+ "obj.type=\"text/javascript\";"
-//		+ "obj.src=\"%s\";"
-//		+ "document.body.appendChild(obj);";
-	private static final String JS_SRC_RULE = "var obj = document.createElement(\"script\");"
-		+ "obj.type=\"text/javascript\";"
-		+ "obj.innerText=\"%s\";"
-		+ "document.body.appendChild(obj);";
-	private static final String FUN_FIND_LANGUAGE = "function findLanguage(language) {" +
-		"    var nodeList = document.querySelectorAll('a.interlanguage-link-target');" +
-		"    for (var i = 0; i < nodeList.length; i++) {" +
-		"        if (nodeList[i].innerText == language)" +
-		"            return true;" +
-		"    }" +
-		"    return false;" +
-		"};";
-	private static final String FUN_FIND_LANGUAGE_HREF = "function findLanguageHref(language) {" +
-		"    var nodeList = document.querySelectorAll('a.interlanguage-link-target');" +
-		"    for (var i = 0; i < nodeList.length; i++) {" +
-		"        if (nodeList[i].innerText == language)" +
-		"            return nodeList[i].href;" +
-		"    }" +
-		"    return 'javascript:void(0)';" +
-		"};";
-	private static final String FUN_FIND_ALL_LANGUAGE = "function findAllLanguage(){" +
-		"    var allLanguageNodeList = document.querySelectorAll('a.interlanguage-link-target');" +
-		"    var allLanguageString = Array.from(allLanguageNodeList).flatMap(ele => ele.innerText);" +
-		"    return allLanguageString;" +
-		"};";
-	private CountDownLatch loadJavaScript = new CountDownLatch(1);
+	private static final String ARCH_URI;
+	private static final String JS_SRC_RULE;
+	private static final List<String> ALL_JAVASCRIPT_FUNCTION = new ArrayList<>();
+	private CountDownLatch loadJavaScript = new CountDownLatch(2);
 	private FloatingActionsMenu fabMenu;
 	private FloatingActionButton fab1;
 	private FloatingActionButton fab2;
 	private FloatingActionButton fab3;
 	private ProgressBar progressBar;
 	private WebView webview;
-
+	
 	private static final int SHOW_LOADING = 1;
 	private static final int HIDE_LOADING = 2;
-
+	
+	private String autoLanguage = "zh-Hans";
+	
 	private final Handler handler = new Handler() {
 		@Override
 		public void handleMessage(Message msg) {
@@ -100,21 +78,56 @@ public class MainActivity extends AppCompatActivity {
 			}
 		}
 	};
-
+	
 	private final IJavaScriptInterface javaScriptInterface = new IJavaScriptInterface() {
 		@JavascriptInterface
 		public void startFunction() {
 			Log.d(TAG, "js调用了java函数");
 			Toast.makeText(MainActivity.this, "js调用了java函数", Toast.LENGTH_SHORT).show();
 		}
-
+		
 		@JavascriptInterface
 		public void startFunction(final String str) {
 			Log.d(TAG, "js调用了java函数传递参数: " + str);
 			Toast.makeText(MainActivity.this, "js调用了java函数传递参数: " + str, Toast.LENGTH_SHORT).show();
 		}
 	};
-
+	
+	static {
+//		ARCH_URI = "file:///android_asset/web/index.html";
+		ARCH_URI = "https://wiki.archlinux.org/";
+		JS_SRC_RULE = "var obj = document.createElement(\"script\");"
+			+ "obj.type=\"text/javascript\";"
+			+ "obj.innerText=\"%s\";"
+			+ "document.body.appendChild(obj);";
+		ALL_JAVASCRIPT_FUNCTION.add(
+			"function findLanguage(language) {" +
+				"    var nodeList = document.querySelectorAll('a.interlanguage-link-target');" +
+				"    for (var i = 0; i < nodeList.length; i++) {" +
+				"        if (nodeList[i].lang == language)" +
+				"            return true;" +
+				"    }" +
+				"    return false;" +
+				"};");
+//		document.querySelectorAll("a.interlanguage-link-target[lang=en]")
+		ALL_JAVASCRIPT_FUNCTION.add(
+			"function findLanguageHref(language) {" +
+				"    var nodeList = document.querySelectorAll('a.interlanguage-link-target');" +
+				"    for (var i = 0; i < nodeList.length; i++) {" +
+				"        if (nodeList[i].lang == language)" +
+				"            return nodeList[i].href;" +
+				"    }" +
+				"    return 'javascript:void(0)';" +
+				"};");
+		ALL_JAVASCRIPT_FUNCTION.add(
+			"function findAllLanguage(){" +
+				"    var allLanguageNodeList = document.querySelectorAll('a.interlanguage-link-target');" +
+				"    var allLanguageString = Array.from(allLanguageNodeList).flatMap(ele => ele.innerText);" +
+				"    return allLanguageString;" +
+				"};"
+		);
+	}
+	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -124,12 +137,12 @@ public class MainActivity extends AppCompatActivity {
 		initEvent();
 		init();
 	}
-
+	
 	private void init() {
 		Log.d(TAG, "init: ");
 		webview.loadUrl(ARCH_URI);
 	}
-
+	
 	@SuppressLint("SetJavaScriptEnabled")
 	private void initEvent() {
 		webview.setHorizontalScrollBarEnabled(false);
@@ -141,14 +154,14 @@ public class MainActivity extends AppCompatActivity {
 				Log.d(TAG, "shouldOverrideUrlLoading: " + request.getUrl().toString());
 				try {
 					view.loadUrl(request.getUrl().toString());
-					loadJavaScript = new CountDownLatch(1);
+					loadJavaScript = new CountDownLatch(2);
 					return true;
 				} catch (Exception e) {
 					e.printStackTrace();
 					return false;
 				}
 			}
-
+			
 			@Override
 			public void onPageStarted(WebView view, String url, Bitmap favicon) {
 				webview.setVisibility(View.INVISIBLE);
@@ -156,19 +169,40 @@ public class MainActivity extends AppCompatActivity {
 				Log.d(TAG, "onPageStarted: " + url);
 				handler.sendEmptyMessage(SHOW_LOADING);
 			}
-
+			
 			@Override
 			public void onPageFinished(WebView view, String url) {
-				if (loadJavaScript.getCount() > 0) {
-					Log.d(TAG, "onPageFinished: inject js script: \n" + String.format(JS_SRC_RULE, generateAllJsScript()));
-					loadJavaScript.countDown();
-					view.evaluateJavascript(String.format(JS_SRC_RULE, generateAllJsScript()),
-						value -> Log.d(TAG, "onPageFinished: evaluateJavascript: " + value));
+				switch ((int) loadJavaScript.getCount()) {
+					case 2:
+						Log.d(TAG, "onPageFinished: inject js script: \n" + String.format(JS_SRC_RULE,
+							ALL_JAVASCRIPT_FUNCTION.stream().reduce("", (s, s2) -> s + s2)));
+						loadJavaScript.countDown();
+						view.evaluateJavascript(String.format(JS_SRC_RULE,
+							ALL_JAVASCRIPT_FUNCTION.stream().reduce("", (s, s2) -> s + s2)),
+							value -> Log.d(TAG, "evaluateJavascript: " + value));
+						Log.d(TAG, "onPageFinished: try change language");
+						if (null != autoLanguage && !"".equals(autoLanguage)) {
+							Log.d(TAG, "onPageFinished: auto set language: \n" + String.format(JS_SRC_RULE,
+								ALL_JAVASCRIPT_FUNCTION.stream().reduce("", (s, s2) -> s + s2)));
+							loadJavaScript.countDown();
+							view.evaluateJavascript("javascript:findLanguageHref('" + autoLanguage + "');",
+								value -> {
+									if (null != value && !"".equals(value)) {
+										Log.d(TAG, "load url:" + value);
+										webview.loadUrl(value);
+									}
+								});
+						}
+						webview.setVisibility(View.VISIBLE);
+						handler.sendEmptyMessage(HIDE_LOADING);
+						break;
+					default:
+						webview.setVisibility(View.VISIBLE);
+						handler.sendEmptyMessage(HIDE_LOADING);
+						break;
 				}
-				super.onPageFinished(view, url);
-				webview.setVisibility(View.VISIBLE);
 				Log.d(TAG, "onPageFinished: " + url);
-				handler.sendEmptyMessage(HIDE_LOADING);
+				super.onPageFinished(view, url);
 			}
 		});
 		webview.setWebChromeClient(new WebChromeClient() {
@@ -182,7 +216,7 @@ public class MainActivity extends AppCompatActivity {
 					.show();
 				return true;
 			}
-
+			
 			@Override
 			public boolean onJsConfirm(WebView view, String url, String message, final JsResult result) {
 				new AlertDialog.Builder(MainActivity.this)
@@ -194,7 +228,7 @@ public class MainActivity extends AppCompatActivity {
 					.show();
 				return true;
 			}
-
+			
 			@Override
 			public boolean onJsPrompt(WebView view, String url, String message, String defaultValue, final JsPromptResult result) {
 				final EditText et = new EditText(MainActivity.this);
@@ -210,7 +244,7 @@ public class MainActivity extends AppCompatActivity {
 			}
 		});
 		webview.addJavascriptInterface(javaScriptInterface, "javaScriptInterface");
-
+		
 		WebSettings setting = webview.getSettings();
 		setting.setUseWideViewPort(true);
 		setting.setJavaScriptEnabled(true);
@@ -220,7 +254,7 @@ public class MainActivity extends AppCompatActivity {
 		setting.setDisplayZoomControls(false);
 		setting.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.SINGLE_COLUMN);
 		setting.setLoadWithOverviewMode(true);
-
+		
 		setting.setCacheMode(WebSettings.LOAD_DEFAULT);
 		setting.setDatabaseEnabled(false);
 		setting.setAppCacheEnabled(false);
@@ -234,22 +268,22 @@ public class MainActivity extends AppCompatActivity {
 			Log.d(TAG, "received: " + value);
 			Toast.makeText(MainActivity.this, value, Toast.LENGTH_SHORT).show();
 		}));
-		fab2.setOnClickListener(v -> webview.evaluateJavascript("javascript:findLanguage('中文（简体）\u200E')", value -> {
+		fab2.setOnClickListener(v -> webview.evaluateJavascript("javascript:findLanguage('en')", value -> {
 			Log.d(TAG, "received: " + value);
 			Toast.makeText(MainActivity.this, value, Toast.LENGTH_SHORT).show();
 		}));
 		fab3.setOnClickListener(v -> {
 			Log.d(TAG, "initEvent: webview reload");
-			loadJavaScript = new CountDownLatch(1);
+			loadJavaScript = new CountDownLatch(2);
 			webview.reload();
 			Toast.makeText(MainActivity.this, "reload", Toast.LENGTH_SHORT).show();
 		});
 	}
-
+	
 	private String generateAllJsScript() {
-		return FUN_FIND_ALL_LANGUAGE + FUN_FIND_LANGUAGE + FUN_FIND_LANGUAGE_HREF;
+		return ALL_JAVASCRIPT_FUNCTION.stream().reduce("", (s, s2) -> s + s2);
 	}
-
+	
 	private void initView() {
 		webview = findViewById(R.id.webview);
 		fabMenu = findViewById(R.id.fab_menu);
@@ -258,7 +292,7 @@ public class MainActivity extends AppCompatActivity {
 		fab3 = findViewById(R.id.fab_3);
 		progressBar = findViewById(R.id.progressbar);
 	}
-
+	
 	public void requestPermissions() {
 		// checkSelfPermission 判断是否已经申请了此权限
 		if (ContextCompat.checkSelfPermission(this, Manifest.permission.INTERNET)
@@ -272,7 +306,45 @@ public class MainActivity extends AppCompatActivity {
 			}
 		}
 	}
-
+	
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+		super.onCreateOptionsMenu(menu);
+		Log.d(TAG, "onCreateOptionsMenu: ");
+		getMenuInflater().inflate(R.menu.menu, menu);
+		return true;
+	}
+	
+	@Override
+	public boolean onPrepareOptionsMenu(Menu menu) {
+		super.onPrepareOptionsMenu(menu);
+		Log.d(TAG, "onPrepareOptionsMenu: ");
+		return true;
+	}
+	
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+		Log.d(TAG, "onOptionsItemSelected: " + item.toString());
+		switch (item.getItemId()) {
+			case R.id.item_language_preference:
+				Toast.makeText(MainActivity.this, "item_language_preference", Toast.LENGTH_SHORT).show();
+				autoLanguage = "";
+				break;
+			case R.id.item_language_preference_zh:
+				Toast.makeText(MainActivity.this, "item_language_zh", Toast.LENGTH_SHORT).show();
+				autoLanguage = "zh-Hans";
+				break;
+			case R.id.item_language_preference_en:
+				Toast.makeText(MainActivity.this, "item_language_en", Toast.LENGTH_SHORT).show();
+				autoLanguage = "en";
+				break;
+			case R.id.item_setting:
+				Toast.makeText(MainActivity.this, "item_setting", Toast.LENGTH_SHORT).show();
+				break;
+		}
+		return super.onOptionsItemSelected(item);
+	}
+	
 	@Override
 	public boolean onKeyUp(int keyCode, KeyEvent event) {
 		if (keyCode == KeyEvent.KEYCODE_BACK && event.getAction() == KeyEvent.ACTION_UP) {
@@ -287,7 +359,7 @@ public class MainActivity extends AppCompatActivity {
 		//继续执行父类其他点击事件
 		return super.onKeyUp(keyCode, event);
 	}
-
+	
 	@Override
 	public void onRequestPermissionsResult(int requestCode, String[] permissions,
 	                                       int[] grantResults) {
