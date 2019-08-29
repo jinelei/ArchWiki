@@ -39,7 +39,7 @@ public class MainActivity extends AppCompatActivity {
 	private static final String TAG = "MainActivity";
 	//	private static final String ARCH_URI = "file:///android_asset/web/index.html";
 	private static final String ARCH_URI = "https://wiki.archlinux.org/";
-//	private static final String JS_SRC_RULE = "var obj = document.createElement(\"script\");"
+	//	private static final String JS_SRC_RULE = "var obj = document.createElement(\"script\");"
 //		+ "obj.type=\"text/javascript\";"
 //		+ "obj.src=\"%s\";"
 //		+ "document.body.appendChild(obj);";
@@ -47,6 +47,27 @@ public class MainActivity extends AppCompatActivity {
 		+ "obj.type=\"text/javascript\";"
 		+ "obj.innerText=\"%s\";"
 		+ "document.body.appendChild(obj);";
+	private static final String FUN_FIND_LANGUAGE = "function findLanguage(language) {" +
+		"    var nodeList = document.querySelectorAll('a.interlanguage-link-target');" +
+		"    for (var i = 0; i < nodeList.length; i++) {" +
+		"        if (nodeList[i].innerText == language)" +
+		"            return true;" +
+		"    }" +
+		"    return false;" +
+		"};";
+	private static final String FUN_FIND_LANGUAGE_HREF = "function findLanguageHref(language) {" +
+		"    var nodeList = document.querySelectorAll('a.interlanguage-link-target');" +
+		"    for (var i = 0; i < nodeList.length; i++) {" +
+		"        if (nodeList[i].innerText == language)" +
+		"            return nodeList[i].href;" +
+		"    }" +
+		"    return 'javascript:void(0)';" +
+		"};";
+	private static final String FUN_FIND_ALL_LANGUAGE = "function findAllLanguage(){" +
+		"    var allLanguageNodeList = document.querySelectorAll('a.interlanguage-link-target');" +
+		"    var allLanguageString = Array.from(allLanguageNodeList).flatMap(ele => ele.innerText);" +
+		"    return allLanguageString;" +
+		"};";
 	private CountDownLatch loadJavaScript = new CountDownLatch(1);
 	private FloatingActionsMenu fabMenu;
 	private FloatingActionButton fab1;
@@ -98,6 +119,7 @@ public class MainActivity extends AppCompatActivity {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
+		requestPermissions();
 		initView();
 		initEvent();
 		init();
@@ -112,7 +134,7 @@ public class MainActivity extends AppCompatActivity {
 	private void initEvent() {
 		webview.setHorizontalScrollBarEnabled(false);
 		webview.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
-		webview.setWebContentsDebuggingEnabled(true);
+		WebView.setWebContentsDebuggingEnabled(true);
 		webview.setWebViewClient(new WebViewClient() {
 			@Override
 			public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
@@ -129,6 +151,7 @@ public class MainActivity extends AppCompatActivity {
 
 			@Override
 			public void onPageStarted(WebView view, String url, Bitmap favicon) {
+				webview.setVisibility(View.INVISIBLE);
 				super.onPageStarted(view, url, favicon);
 				Log.d(TAG, "onPageStarted: " + url);
 				handler.sendEmptyMessage(SHOW_LOADING);
@@ -137,12 +160,13 @@ public class MainActivity extends AppCompatActivity {
 			@Override
 			public void onPageFinished(WebView view, String url) {
 				if (loadJavaScript.getCount() > 0) {
-					Log.d(TAG, "onPageFinished: inject js script");
+					Log.d(TAG, "onPageFinished: inject js script: \n" + String.format(JS_SRC_RULE, generateAllJsScript()));
 					loadJavaScript.countDown();
-					view.evaluateJavascript(String.format(JS_SRC_RULE, "function callJS(){ alert('call from js')};"),
+					view.evaluateJavascript(String.format(JS_SRC_RULE, generateAllJsScript()),
 						value -> Log.d(TAG, "onPageFinished: evaluateJavascript: " + value));
 				}
 				super.onPageFinished(view, url);
+				webview.setVisibility(View.VISIBLE);
 				Log.d(TAG, "onPageFinished: " + url);
 				handler.sendEmptyMessage(HIDE_LOADING);
 			}
@@ -206,13 +230,24 @@ public class MainActivity extends AppCompatActivity {
 		setting.setDomStorageEnabled(false);
 		setting.setAllowFileAccess(false);
 		setting.setSavePassword(false);
-		fab1.setOnClickListener(v -> webview.evaluateJavascript(showAlert("from java"), value -> Log.d(TAG, "received: " + value)));
-//		fab2.setOnClickListener(v -> webview.evaluateJavascript(appendToContent("from java"), value -> Log.d(TAG, "received: " + value)));
-		fab2.setOnClickListener(v -> webview.evaluateJavascript(callJS(), value -> Log.d(TAG, "received: " + value)));
+		fab1.setOnClickListener(v -> webview.evaluateJavascript("javascript:findAllLanguage()", value -> {
+			Log.d(TAG, "received: " + value);
+			Toast.makeText(MainActivity.this, value, Toast.LENGTH_SHORT).show();
+		}));
+		fab2.setOnClickListener(v -> webview.evaluateJavascript("javascript:findLanguage('中文（简体）\u200E')", value -> {
+			Log.d(TAG, "received: " + value);
+			Toast.makeText(MainActivity.this, value, Toast.LENGTH_SHORT).show();
+		}));
 		fab3.setOnClickListener(v -> {
 			Log.d(TAG, "initEvent: webview reload");
+			loadJavaScript = new CountDownLatch(1);
 			webview.reload();
+			Toast.makeText(MainActivity.this, "reload", Toast.LENGTH_SHORT).show();
 		});
+	}
+
+	private String generateAllJsScript() {
+		return FUN_FIND_ALL_LANGUAGE + FUN_FIND_LANGUAGE + FUN_FIND_LANGUAGE_HREF;
 	}
 
 	private void initView() {
@@ -224,7 +259,7 @@ public class MainActivity extends AppCompatActivity {
 		progressBar = findViewById(R.id.progressbar);
 	}
 
-	public void requestPower() {
+	public void requestPermissions() {
 		// checkSelfPermission 判断是否已经申请了此权限
 		if (ContextCompat.checkSelfPermission(this, Manifest.permission.INTERNET)
 			!= PERMISSION_GRANTED) {
@@ -236,36 +271,6 @@ public class MainActivity extends AppCompatActivity {
 				ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA,}, 1);
 			}
 		}
-	}
-
-	public String injectJs() {
-//		return "javascript:" +
-//			String.format(JS_SRC_RULE, "document.body.style.display = 'none'");
-		return "javascript:window.ANDROID_CLIENT.showSource("
-			+ "document.body.innerHTML);";
-//			"document.getElementById('logo').style.display = 'none';" +
-//			"document.body.appendChild(document.createElement(\"script\"));";
-//		"document.querySelector('input#searchInput').value = 'asdf'" +
-	}
-
-	public static String detectAllLanguage() {
-		return "document.querySelectorAll(\"a.interlanguage-link-target\")";
-	}
-
-	public static String hideBody() {
-		return "document.getElementById('firstHeading').style.display = 'none';";
-	}
-
-	public static String callJS() {
-		return "javascript:callJS()";
-	}
-
-	public static String showAlert(String something) {
-		return "javascript:alert('" + something + "')";
-	}
-
-	public static String appendToContent(String content) {
-		return "javascript:appendContent('" + content + "')";
 	}
 
 	@Override
