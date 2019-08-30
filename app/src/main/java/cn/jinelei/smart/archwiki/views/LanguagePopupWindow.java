@@ -2,7 +2,6 @@ package cn.jinelei.smart.archwiki.views;
 
 import android.content.Context;
 import android.os.Handler;
-import android.os.Looper;
 import android.os.Message;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -23,13 +22,17 @@ import java.util.Optional;
 import cn.jinelei.smart.archwiki.R;
 import cn.jinelei.smart.archwiki.constants.ArchConstants;
 
+import static cn.jinelei.smart.archwiki.constants.ArchConstants.Handler.CONFIRM_SELECT_LANGUAGE;
+
 public class LanguagePopupWindow extends PopupWindow implements View.OnClickListener {
 	private static final String TAG = "LanguagePopupWindow";
-	private final List<String> allLanguageString = new ArrayList<>();
+	private final List<LanguageModel> allLanguageString = new ArrayList<>();
+	private LanguageModel selectLanguageModel = null;
 	private Handler handler;
 	private Context context;
 	private View rootView;
 	private RecyclerView.Adapter adapter;
+	private TextView selectLanguage;
 
 	public LanguagePopupWindow(Context context) {
 		this(context, null);
@@ -53,15 +56,25 @@ public class LanguagePopupWindow extends PopupWindow implements View.OnClickList
 		this.adapter = new LanguageAdapter();
 		LayoutInflater inflater = LayoutInflater.from(context);
 		rootView = inflater.inflate(R.layout.popup_window_language, null);
-		rootView.findViewById(R.id.tv_confirm).setOnClickListener(this);
+		rootView.findViewById(R.id.tv_title).setOnClickListener(this);
 		RecyclerView rvLanguage = rootView.findViewById(R.id.rv_language);
+		selectLanguage = rootView.findViewById(R.id.vh_tv_select_language);
+		selectLanguage.setOnClickListener(this);
 		setContentView(rootView);
 		rvLanguage.setLayoutManager(new LinearLayoutManager(context));
 		rvLanguage.setAdapter(adapter);
-		handler = new Handler(Looper.getMainLooper());
 	}
 
-	public void resetAllLanguage(List<String> languages) {
+	public void setHandler(Handler handler) {
+		this.handler = handler;
+	}
+
+	public void setSelectLanguageModel(LanguageModel selectLanguageModel) {
+		this.selectLanguageModel = selectLanguageModel;
+		selectLanguage.setText(selectLanguageModel.getDetailLang());
+	}
+
+	public void resetAllLanguage(List<LanguageModel> languages) {
 		allLanguageString.clear();
 		allLanguageString.addAll(languages);
 		this.adapter.notifyDataSetChanged();
@@ -70,7 +83,10 @@ public class LanguagePopupWindow extends PopupWindow implements View.OnClickList
 	@Override
 	public void onClick(View v) {
 		switch (v.getId()) {
-			case R.id.tv_confirm:
+			case R.id.tv_title:
+				break;
+			case R.id.vh_tv_select_language:
+				handler.sendEmptyMessage(CONFIRM_SELECT_LANGUAGE);
 				dismiss();
 				break;
 		}
@@ -87,11 +103,11 @@ public class LanguagePopupWindow extends PopupWindow implements View.OnClickList
 		@Override
 		public void onBindViewHolder(@NonNull LanguageViewHolder holder, int position) {
 			try {
-				String lang = Optional.of(position)
+				LanguageModel lang = Optional.of(position)
 					.filter(p -> p >= 0 && p < allLanguageString.size())
 					.map(p -> allLanguageString.get(position))
 					.orElseThrow(Throwable::new);
-				holder.language.setText(lang);
+				holder.language.setText(lang.getDetailLang());
 				holder.language.setOnClickListener(view -> {
 					Message obtain = Message.obtain();
 					obtain.what = ArchConstants.Handler.SELECT_LANGUAGE;
@@ -117,6 +133,39 @@ public class LanguagePopupWindow extends PopupWindow implements View.OnClickList
 		private LanguageViewHolder(View itemView) {
 			super(itemView);
 			language = itemView.findViewById(R.id.vh_tv_language);
+		}
+	}
+
+	public static class LanguageModel {
+		private String summaryLang;
+		private String detailLang;
+		private String href;
+
+		public String getSummaryLang() {
+			return summaryLang;
+		}
+
+		public String getDetailLang() {
+			return detailLang;
+		}
+
+		public String getHref() {
+			return href;
+		}
+
+		public LanguageModel(String summaryLang, String detailLang, String href) {
+			this.summaryLang = summaryLang;
+			this.detailLang = detailLang;
+			this.href = href;
+		}
+
+		@Override
+		public String toString() {
+			return "LanguageModel{" +
+				"summaryLang='" + summaryLang + '\'' +
+				", detailLang='" + detailLang + '\'' +
+				", href='" + href + '\'' +
+				'}';
 		}
 	}
 }

@@ -1,9 +1,11 @@
 <resources>
-    <string name="app_name">Arch Wiki</string>
+    <string name="app_name" translatable="false">Arch Wiki</string>
     <string name="language_preference">language preference</string>
     <string name="chinese_simple">chinese simple</string>
     <string name="english_america">english america</string>
     <string name="setting">setting</string>
     <string name="keep_default">keep default</string>
     <string name="confirm">confirm</string>
+    <string name="select_preference_language">select preference language</string>
+    <string name="refresh">refresh</string>
 </resources>
