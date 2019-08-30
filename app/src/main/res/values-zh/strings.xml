@@ -5,4 +5,5 @@
     <string name="english_america">英语</string>
     <string name="setting">设置</string>
     <string name="keep_default">保持默认</string>
+    <string name="confirm">confirm</string>
 </resources>

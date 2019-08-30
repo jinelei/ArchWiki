@@ -5,12 +5,15 @@ import android.annotation.SuppressLint;
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.JsPromptResult;
 import android.webkit.JsResult;
@@ -25,6 +28,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
@@ -34,8 +38,12 @@ import com.getbase.floatingactionbutton.FloatingActionsMenu;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import cn.jinelei.smart.archwiki.constants.ArchConstants;
 import cn.jinelei.smart.archwiki.intf.IJavaScriptInterface;
+import cn.jinelei.smart.archwiki.views.LanguagePopupWindow;
 
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 
@@ -44,22 +52,30 @@ public class MainActivity extends AppCompatActivity {
 	private static final String ARCH_URI;
 	private static final String JS_SRC_RULE;
 	private static final List<String> ALL_JAVASCRIPT_FUNCTION = new ArrayList<>();
-	private CountDownLatch loadJavaScript = new CountDownLatch(2);
+	private static final List<String> ALL_LANGUAGE_PREFERENCE = new ArrayList<>();
+	private static final List<String> ALL_LANGUAGE_PREFERENCE_LANG = new ArrayList<>();
+	public static final int LOAD_ORIGIN_PAGE = 2;
+	private static final int GROUP_ID_LANGUAGE = 10;
+	private static final int ITEM_ID_LANGUAGE_PREFERENCE = 11;
+	private static final int LOAD_ALL_FINISH = 0;
+	private CountDownLatch pageLoadStep = new CountDownLatch(LOAD_ORIGIN_PAGE);
 	private FloatingActionsMenu fabMenu;
 	private FloatingActionButton fab1;
 	private FloatingActionButton fab2;
 	private FloatingActionButton fab3;
 	private ProgressBar progressBar;
 	private WebView webview;
-	
+	private CoordinatorLayout clMain;
+	private LanguagePopupWindow languagePopupWindow;
+
 	private static final int SHOW_LOADING = 1;
 	private static final int HIDE_LOADING = 2;
-	
+
 	private String autoLanguage = "zh-Hans";
-	
-	private final Handler handler = new Handler() {
+
+	private final Handler handler = new Handler(Looper.getMainLooper(), new Handler.Callback() {
 		@Override
-		public void handleMessage(Message msg) {
+		public boolean handleMessage(Message msg) {
 			switch (msg.what) {
 				case SHOW_LOADING:
 					progressBar.setVisibility(View.VISIBLE);
@@ -75,24 +91,28 @@ public class MainActivity extends AppCompatActivity {
 						fabMenu.collapseImmediately();
 					}
 					break;
+				case ArchConstants.Handler.SELECT_LANGUAGE:
+					Log.d(TAG, "handleMessage: SELECT_LANGUAGE: " + msg.obj);
+					break;
 			}
+			return true;
 		}
-	};
-	
+	});
+
 	private final IJavaScriptInterface javaScriptInterface = new IJavaScriptInterface() {
 		@JavascriptInterface
 		public void startFunction() {
 			Log.d(TAG, "js调用了java函数");
 			Toast.makeText(MainActivity.this, "js调用了java函数", Toast.LENGTH_SHORT).show();
 		}
-		
+
 		@JavascriptInterface
 		public void startFunction(final String str) {
 			Log.d(TAG, "js调用了java函数传递参数: " + str);
 			Toast.makeText(MainActivity.this, "js调用了java函数传递参数: " + str, Toast.LENGTH_SHORT).show();
 		}
 	};
-	
+
 	static {
 //		ARCH_URI = "file:///android_asset/web/index.html";
 		ARCH_URI = "https://wiki.archlinux.org/";
@@ -127,7 +147,7 @@ public class MainActivity extends AppCompatActivity {
 				"};"
 		);
 	}
-	
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -137,12 +157,25 @@ public class MainActivity extends AppCompatActivity {
 		initEvent();
 		init();
 	}
-	
+
 	private void init() {
 		Log.d(TAG, "init: ");
 		webview.loadUrl(ARCH_URI);
 	}
-	
+
+	private void initView() {
+		clMain = findViewById(R.id.cl_main);
+		webview = findViewById(R.id.webview);
+		fabMenu = findViewById(R.id.fab_menu);
+		fab1 = findViewById(R.id.fab_1);
+		fab2 = findViewById(R.id.fab_2);
+		fab3 = findViewById(R.id.fab_3);
+		progressBar = findViewById(R.id.progressbar);
+		languagePopupWindow = new LanguagePopupWindow(MainActivity.this);
+		languagePopupWindow.setWidth(WindowManager.LayoutParams.MATCH_PARENT);
+		languagePopupWindow.setHeight(MainActivity.this.getWindowManager().getDefaultDisplay().getHeight() / 3);
+	}
+
 	@SuppressLint("SetJavaScriptEnabled")
 	private void initEvent() {
 		webview.setHorizontalScrollBarEnabled(false);
@@ -154,14 +187,14 @@ public class MainActivity extends AppCompatActivity {
 				Log.d(TAG, "shouldOverrideUrlLoading: " + request.getUrl().toString());
 				try {
 					view.loadUrl(request.getUrl().toString());
-					loadJavaScript = new CountDownLatch(2);
+					pageLoadStep = new CountDownLatch(LOAD_ORIGIN_PAGE);
 					return true;
 				} catch (Exception e) {
 					e.printStackTrace();
 					return false;
 				}
 			}
-			
+
 			@Override
 			public void onPageStarted(WebView view, String url, Bitmap favicon) {
 				webview.setVisibility(View.INVISIBLE);
@@ -169,39 +202,40 @@ public class MainActivity extends AppCompatActivity {
 				Log.d(TAG, "onPageStarted: " + url);
 				handler.sendEmptyMessage(SHOW_LOADING);
 			}
-			
+
 			@Override
 			public void onPageFinished(WebView view, String url) {
-				switch ((int) loadJavaScript.getCount()) {
-					case 2:
-						Log.d(TAG, "onPageFinished: inject js script: \n" + String.format(JS_SRC_RULE,
-							ALL_JAVASCRIPT_FUNCTION.stream().reduce("", (s, s2) -> s + s2)));
-						loadJavaScript.countDown();
-						view.evaluateJavascript(String.format(JS_SRC_RULE,
-							ALL_JAVASCRIPT_FUNCTION.stream().reduce("", (s, s2) -> s + s2)),
-							value -> Log.d(TAG, "evaluateJavascript: " + value));
-						Log.d(TAG, "onPageFinished: try change language");
+				Log.d(TAG, "onPageFinished: pageLoadStep: " + pageLoadStep.getCount() + "  " + url);
+				view.evaluateJavascript(String.format(JS_SRC_RULE,
+					ALL_JAVASCRIPT_FUNCTION.stream().reduce("", (s, s2) -> s + s2)),
+					value -> {
+						Log.d(TAG, "inject js script result: " + value);
+						webview.evaluateJavascript("javascript:findAllLanguage()", val -> {
+							List<String> collect = Stream.of(val)
+								.filter(s -> !s.equals("[]") && s.matches("\\[.*\\]"))
+								.map(s -> s.substring(1, s.length() - 1))
+								.flatMap(s -> Stream.of(s.split(",")))
+								.filter(s -> !s.equals("\"\""))
+								.map(s -> s.substring(1, s.length() - 1))
+								.collect(Collectors.toList());
+							Log.d(TAG, "findAllLanguage: " + collect);
+							ALL_LANGUAGE_PREFERENCE_LANG.clear();
+							ALL_LANGUAGE_PREFERENCE_LANG.addAll(collect);
+							languagePopupWindow.resetAllLanguage(collect);
+						});
 						if (null != autoLanguage && !"".equals(autoLanguage)) {
-							Log.d(TAG, "onPageFinished: auto set language: \n" + String.format(JS_SRC_RULE,
-								ALL_JAVASCRIPT_FUNCTION.stream().reduce("", (s, s2) -> s + s2)));
-							loadJavaScript.countDown();
+							pageLoadStep.countDown();
 							view.evaluateJavascript("javascript:findLanguageHref('" + autoLanguage + "');",
-								value -> {
-									if (null != value && !"".equals(value)) {
-										Log.d(TAG, "load url:" + value);
-										webview.loadUrl(value);
+								value1 -> {
+									if (null != value1 && !"".equals(value1) && !"\"\"".equals(value1)) {
+										Log.d(TAG, "findLanguageHref: " + value1);
+										webview.loadUrl(value1.substring(1, value1.length() - 1));
 									}
 								});
 						}
-						webview.setVisibility(View.VISIBLE);
-						handler.sendEmptyMessage(HIDE_LOADING);
-						break;
-					default:
-						webview.setVisibility(View.VISIBLE);
-						handler.sendEmptyMessage(HIDE_LOADING);
-						break;
-				}
-				Log.d(TAG, "onPageFinished: " + url);
+					});
+				webview.setVisibility(View.VISIBLE);
+				handler.sendEmptyMessage(HIDE_LOADING);
 				super.onPageFinished(view, url);
 			}
 		});
@@ -216,7 +250,7 @@ public class MainActivity extends AppCompatActivity {
 					.show();
 				return true;
 			}
-			
+
 			@Override
 			public boolean onJsConfirm(WebView view, String url, String message, final JsResult result) {
 				new AlertDialog.Builder(MainActivity.this)
@@ -228,7 +262,7 @@ public class MainActivity extends AppCompatActivity {
 					.show();
 				return true;
 			}
-			
+
 			@Override
 			public boolean onJsPrompt(WebView view, String url, String message, String defaultValue, final JsPromptResult result) {
 				final EditText et = new EditText(MainActivity.this);
@@ -244,7 +278,7 @@ public class MainActivity extends AppCompatActivity {
 			}
 		});
 		webview.addJavascriptInterface(javaScriptInterface, "javaScriptInterface");
-		
+
 		WebSettings setting = webview.getSettings();
 		setting.setUseWideViewPort(true);
 		setting.setJavaScriptEnabled(true);
@@ -254,7 +288,7 @@ public class MainActivity extends AppCompatActivity {
 		setting.setDisplayZoomControls(false);
 		setting.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.SINGLE_COLUMN);
 		setting.setLoadWithOverviewMode(true);
-		
+
 		setting.setCacheMode(WebSettings.LOAD_DEFAULT);
 		setting.setDatabaseEnabled(false);
 		setting.setAppCacheEnabled(false);
@@ -274,25 +308,16 @@ public class MainActivity extends AppCompatActivity {
 		}));
 		fab3.setOnClickListener(v -> {
 			Log.d(TAG, "initEvent: webview reload");
-			loadJavaScript = new CountDownLatch(2);
+			pageLoadStep = new CountDownLatch(LOAD_ORIGIN_PAGE);
 			webview.reload();
 			Toast.makeText(MainActivity.this, "reload", Toast.LENGTH_SHORT).show();
 		});
 	}
-	
+
 	private String generateAllJsScript() {
 		return ALL_JAVASCRIPT_FUNCTION.stream().reduce("", (s, s2) -> s + s2);
 	}
-	
-	private void initView() {
-		webview = findViewById(R.id.webview);
-		fabMenu = findViewById(R.id.fab_menu);
-		fab1 = findViewById(R.id.fab_1);
-		fab2 = findViewById(R.id.fab_2);
-		fab3 = findViewById(R.id.fab_3);
-		progressBar = findViewById(R.id.progressbar);
-	}
-	
+
 	public void requestPermissions() {
 		// checkSelfPermission 判断是否已经申请了此权限
 		if (ContextCompat.checkSelfPermission(this, Manifest.permission.INTERNET)
@@ -306,45 +331,47 @@ public class MainActivity extends AppCompatActivity {
 			}
 		}
 	}
-	
+
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		super.onCreateOptionsMenu(menu);
 		Log.d(TAG, "onCreateOptionsMenu: ");
-		getMenuInflater().inflate(R.menu.menu, menu);
+		menu.addSubMenu(GROUP_ID_LANGUAGE, ITEM_ID_LANGUAGE_PREFERENCE, 0, R.string.language_preference);
+//		getMenuInflater().inflate(R.menu.menu, menu);
 		return true;
 	}
-	
+
 	@Override
 	public boolean onPrepareOptionsMenu(Menu menu) {
 		super.onPrepareOptionsMenu(menu);
 		Log.d(TAG, "onPrepareOptionsMenu: ");
 		return true;
 	}
-	
+
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		Log.d(TAG, "onOptionsItemSelected: " + item.toString());
 		switch (item.getItemId()) {
-			case R.id.item_language_preference:
-				Toast.makeText(MainActivity.this, "item_language_preference", Toast.LENGTH_SHORT).show();
-				autoLanguage = "";
+			case ITEM_ID_LANGUAGE_PREFERENCE:
+//				LinearLayout llLanguagePreferences = new LinearLayout(MainActivity.this);
+//				llLanguagePreferences.setOrientation(LinearLayout.VERTICAL);
+//				for (String lang : ALL_LANGUAGE_PREFERENCE_LANG) {
+//					TextView textview = new TextView(MainActivity.this);
+//					textview.setText(lang);
+//					llLanguagePreferences.addView(textview);
+//				}
+//				new AlertDialog.Builder(MainActivity.this)
+//					.setView(llLanguagePreferences)
+//					.create().show();
+				languagePopupWindow.showAtLocation(clMain, Gravity.BOTTOM, 0, 0);
 				break;
-			case R.id.item_language_preference_zh:
-				Toast.makeText(MainActivity.this, "item_language_zh", Toast.LENGTH_SHORT).show();
-				autoLanguage = "zh-Hans";
-				break;
-			case R.id.item_language_preference_en:
-				Toast.makeText(MainActivity.this, "item_language_en", Toast.LENGTH_SHORT).show();
-				autoLanguage = "en";
-				break;
-			case R.id.item_setting:
-				Toast.makeText(MainActivity.this, "item_setting", Toast.LENGTH_SHORT).show();
+			default:
+				Toast.makeText(MainActivity.this, "default", Toast.LENGTH_SHORT).show();
 				break;
 		}
 		return super.onOptionsItemSelected(item);
 	}
-	
+
 	@Override
 	public boolean onKeyUp(int keyCode, KeyEvent event) {
 		if (keyCode == KeyEvent.KEYCODE_BACK && event.getAction() == KeyEvent.ACTION_UP) {
@@ -359,7 +386,7 @@ public class MainActivity extends AppCompatActivity {
 		//继续执行父类其他点击事件
 		return super.onKeyUp(keyCode, event);
 	}
-	
+
 	@Override
 	public void onRequestPermissionsResult(int requestCode, String[] permissions,
 	                                       int[] grantResults) {
