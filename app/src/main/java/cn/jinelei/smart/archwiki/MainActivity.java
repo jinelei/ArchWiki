@@ -58,8 +58,9 @@ public class MainActivity extends AppCompatActivity {
 	private LanguagePopupWindow.LanguageModel selectLanguageModel =
 		new LanguagePopupWindow.LanguageModel("zh-Hans", "简体中文", "");
 	private static final int GROUP_ID_LANGUAGE = 10;
-	private static final int ITEM_ID_REFRESH = 12;
 	private static final int ITEM_ID_LANGUAGE_PREFERENCE = 11;
+	private static final int ITEM_ID_REFRESH = 12;
+	private static final int ITEM_ID_SEARCH = 13;
 	private FloatingActionsMenu fabMenu;
 	private FloatingActionButton fab1;
 	private FloatingActionButton fab2;
@@ -76,6 +77,7 @@ public class MainActivity extends AppCompatActivity {
 		public boolean handleMessage(Message msg) {
 			switch (msg.what) {
 				case SHOW_LOADING:
+					webview.setVisibility(View.GONE);
 					progressBar.setVisibility(View.VISIBLE);
 					fabMenu.setEnabled(false);
 					if (fabMenu.isExpanded()) {
@@ -83,6 +85,7 @@ public class MainActivity extends AppCompatActivity {
 					}
 					break;
 				case HIDE_LOADING:
+					webview.setVisibility(View.VISIBLE);
 					progressBar.setVisibility(View.GONE);
 					fabMenu.setEnabled(true);
 					if (fabMenu.isExpanded()) {
@@ -144,7 +147,7 @@ public class MainActivity extends AppCompatActivity {
 			view.evaluateJavascript(String.format(JS_SRC_RULE,
 				ALL_JAVASCRIPT_FUNCTION.stream().reduce("", (s, s2) -> s + s2)),
 				value -> {
-					Log.d(TAG, "inject js script result: ");
+					Log.d(TAG, "inject js script result: " + value);
 					// findAllLanguageAll
 					webview.evaluateJavascript("javascript:findAllLanguageAll()", val -> {
 						List<LanguagePopupWindow.LanguageModel> collect = Stream.of(val)
@@ -167,13 +170,14 @@ public class MainActivity extends AppCompatActivity {
 								if (languageModel.getSummaryLang().equals(selectLanguageModel.getSummaryLang())
 									&& null != languageModel.getHref() && !languageModel.getHref().equals("")) {
 									isAutoLanguage = true;
+									Log.d(TAG, "autoSetLanguage: " + isAutoLanguage);
 									webview.loadUrl(languageModel.getHref());
 								}
 							}
 						}
 					});
 					// autoHideLang
-					webview.evaluateJavascript("javascript:autoHideElement()", val -> Log.d(TAG, "evaluateJavascript: autoHideElement"));
+					webview.evaluateJavascript("javascript:autoHideElement()", val -> Log.d(TAG, "evaluateJavascript: autoHideElement: " + val));
 				});
 			if (!isAutoLanguage) {
 				webview.setVisibility(View.VISIBLE);
@@ -258,12 +262,22 @@ public class MainActivity extends AppCompatActivity {
 				"};"
 		);
 		ALL_JAVASCRIPT_FUNCTION.add(
-			"function autoHideElement(){" +
-				"    document.querySelector('div#p-lang').style.display = 'none';" +
-				"    document.querySelector('div#mw-navigation').style.display = 'none';" +
-				"    document.querySelector('div#mw-head-base').style.display = 'none';" +
-				"    document.querySelector('div#mw-page-base').style.display = 'none';" +
-				"    document.querySelector('div#archnavbar').style.display = 'none';" +
+			"function autoHideElement() {" +
+				"    var eles = ['div#p-lang', 'div#mw-navigation'," +
+				"        'div#mw-head-base', 'div#mw-page-base'," +
+				"        'div#archnavbar', 'div#footer'];" +
+				"    for (var i in eles) {" +
+				"        var temp = document.querySelector(eles[i]);" +
+				"        if (!!temp) {" +
+				"            temp.style.display = 'none';" +
+				"        }" +
+				"    }" +
+				"};"
+		);
+		ALL_JAVASCRIPT_FUNCTION.add(
+			"function searchKey(key){" +
+				"    document.querySelector('input#searchInput').value = key;" +
+				"    document.querySelector('input#searchButton').click();" +
 				"};"
 		);
 	}
@@ -353,6 +367,7 @@ public class MainActivity extends AppCompatActivity {
 		Log.d(TAG, "onCreateOptionsMenu: ");
 		menu.addSubMenu(GROUP_ID_LANGUAGE, ITEM_ID_LANGUAGE_PREFERENCE, 0, R.string.language_preference);
 		menu.add(GROUP_ID_LANGUAGE, ITEM_ID_REFRESH, 1, R.string.refresh);
+		menu.add(GROUP_ID_LANGUAGE, ITEM_ID_SEARCH, 1, R.string.search);
 		return true;
 	}
 
@@ -373,7 +388,20 @@ public class MainActivity extends AppCompatActivity {
 				}
 				break;
 			case ITEM_ID_REFRESH:
+				handler.sendEmptyMessage(SHOW_LOADING);
 				webview.reload();
+				break;
+			case ITEM_ID_SEARCH:
+				EditText editText = new EditText(MainActivity.this);
+				new AlertDialog.Builder(MainActivity.this)
+					.setView(editText)
+					.setPositiveButton(R.string.search, (dialog, which) ->
+						webview.evaluateJavascript("javascript:searchKey('" + editText.getText() + "')",
+							value -> {
+								Log.d(TAG, "searchKey: " + editText.getText());
+							})
+					)
+					.create().show();
 				break;
 			default:
 				Toast.makeText(MainActivity.this, "default", Toast.LENGTH_SHORT).show();

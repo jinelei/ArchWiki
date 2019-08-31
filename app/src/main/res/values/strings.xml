@@ -8,4 +8,5 @@
     <string name="confirm">confirm</string>
     <string name="select_preference_language">select preference language</string>
     <string name="refresh">refresh</string>
+    <string name="search">search</string>
 </resources>

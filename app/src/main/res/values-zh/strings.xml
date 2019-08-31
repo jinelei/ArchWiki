@@ -8,4 +8,5 @@
     <string name="confirm">confirm</string>
     <string name="select_preference_language">选择首选语言</string>
     <string name="refresh">刷新</string>
+    <string name="search">搜索</string>
 </resources>
