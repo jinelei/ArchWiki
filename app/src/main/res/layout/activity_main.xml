@@ -46,7 +46,7 @@
         android:visibility="visible"
         app:elevation="4dp"
         fab:fab_addButtonColorNormal="@color/colorAccent"
-        fab:fab_icon="@drawable/ic_launcher_foreground"
+        fab:fab_icon="@mipmap/ic_launcher"
         fab:fab_labelsPosition="left">
 
         <com.getbase.floatingactionbutton.FloatingActionButton
@@ -54,7 +54,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             fab:fab_colorNormal="@color/colorAccent"
-            fab:fab_icon="@drawable/ic_launcher_foreground"
+            fab:fab_icon="@mipmap/ic_launcher"
             fab:fab_title="setting" />
 
         <com.getbase.floatingactionbutton.FloatingActionButton
@@ -62,7 +62,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             fab:fab_colorNormal="@color/colorAccent"
-            fab:fab_icon="@drawable/ic_launcher_foreground"
+            fab:fab_icon="@mipmap/ic_launcher"
             fab:fab_title="query" />
 
         <com.getbase.floatingactionbutton.FloatingActionButton
@@ -70,7 +70,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             fab:fab_colorNormal="@color/colorAccent"
-            fab:fab_icon="@drawable/ic_launcher_foreground"
+            fab:fab_icon="@mipmap/ic_launcher"
             fab:fab_title="refresh" />
     </com.getbase.floatingactionbutton.FloatingActionsMenu>
 

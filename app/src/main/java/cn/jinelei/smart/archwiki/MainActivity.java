@@ -3,6 +3,8 @@ package cn.jinelei.smart.archwiki;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.graphics.Bitmap;
+import android.graphics.Point;
+import android.graphics.drawable.BitmapDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -26,6 +28,7 @@ import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
+import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
@@ -37,6 +40,7 @@ import com.getbase.floatingactionbutton.FloatingActionsMenu;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -61,6 +65,7 @@ public class MainActivity extends AppCompatActivity {
 	private static final int ITEM_ID_LANGUAGE_PREFERENCE = 11;
 	private static final int ITEM_ID_REFRESH = 12;
 	private static final int ITEM_ID_SEARCH = 13;
+	private ActionBar supportActionBar;
 	private FloatingActionsMenu fabMenu;
 	private FloatingActionButton fab1;
 	private FloatingActionButton fab2;
@@ -70,7 +75,7 @@ public class MainActivity extends AppCompatActivity {
 	private CoordinatorLayout clMain;
 	private LanguagePopupWindow languagePopupWindow;
 	private boolean isAutoLanguage = false;
-
+	private boolean isBackAction = false;
 
 	private final Handler handler = new Handler(Looper.getMainLooper(), new Handler.Callback() {
 		@Override
@@ -164,7 +169,7 @@ public class MainActivity extends AppCompatActivity {
 						ALL_LANGUAGE.clear();
 						ALL_LANGUAGE.addAll(collect);
 						languagePopupWindow.resetAllLanguage(collect);
-						if (null != selectLanguageModel) {
+						if (null != selectLanguageModel && shouldLoadJavaScript()) {
 							// findLanguageHref
 							for (LanguagePopupWindow.LanguageModel languageModel : collect) {
 								if (languageModel.getSummaryLang().equals(selectLanguageModel.getSummaryLang())
@@ -175,18 +180,36 @@ public class MainActivity extends AppCompatActivity {
 								}
 							}
 						}
+						isBackAction = false;
 					});
 					// autoHideLang
 					webview.evaluateJavascript("javascript:autoHideElement()", val -> Log.d(TAG, "evaluateJavascript: autoHideElement: " + val));
 				});
-			if (!isAutoLanguage) {
+			if (!shouldLoadJavaScript()) {
 				webview.setVisibility(View.VISIBLE);
 				handler.sendEmptyMessage(HIDE_LOADING);
+				resetLoadJavaScriptCondition();
 			}
 			super.onPageFinished(view, url);
 		}
 	};
 	private final WebChromeClient webChromeClient = new WebChromeClient() {
+		@Override
+		public void onReceivedIcon(WebView view, Bitmap icon) {
+			super.onReceivedIcon(view, icon);
+			Optional.ofNullable(supportActionBar)
+				.filter(s -> null != icon)
+				.ifPresent(actionBar -> actionBar.setIcon(new BitmapDrawable(null, icon)));
+		}
+
+		@Override
+		public void onReceivedTitle(WebView view, String title) {
+			super.onReceivedTitle(view, title);
+			Optional.ofNullable(supportActionBar)
+				.filter(s -> null != title && !title.equals(""))
+				.ifPresent(actionBar -> actionBar.setSubtitle(title));
+		}
+
 		@Override
 		public boolean onJsAlert(WebView view, String url, String message, final JsResult result) {
 			new AlertDialog.Builder(MainActivity.this)
@@ -246,7 +269,6 @@ public class MainActivity extends AppCompatActivity {
 		}
 	};
 
-
 	static {
 //		ARCH_URI = "file:///android_asset/web/index.html";
 		ARCH_URI = "https://wiki.archlinux.org/";
@@ -305,13 +327,16 @@ public class MainActivity extends AppCompatActivity {
 		fab2 = findViewById(R.id.fab_2);
 		fab3 = findViewById(R.id.fab_3);
 		fabMenu.setVisibility(View.GONE);
+		supportActionBar = getSupportActionBar();
 		progressBar = findViewById(R.id.progressbar);
 		languagePopupWindow = new LanguagePopupWindow(MainActivity.this);
 		languagePopupWindow.setSelectLanguageModel(selectLanguageModel);
 		languagePopupWindow.setOutsideTouchable(true);
 		languagePopupWindow.setHandler(handler);
 		languagePopupWindow.setWidth(WindowManager.LayoutParams.MATCH_PARENT);
-		languagePopupWindow.setHeight(MainActivity.this.getWindowManager().getDefaultDisplay().getHeight() / 3);
+		Point windowSize = new Point();
+		MainActivity.this.getWindowManager().getDefaultDisplay().getSize(windowSize);
+		languagePopupWindow.setHeight(windowSize.x / 3);
 	}
 
 	@SuppressLint("SetJavaScriptEnabled")
@@ -341,7 +366,6 @@ public class MainActivity extends AppCompatActivity {
 		setting.setSaveFormData(false);
 		setting.setDomStorageEnabled(false);
 		setting.setAllowFileAccess(false);
-		setting.setSavePassword(false);
 		fab1.setOnClickListener(onClickListener);
 		fab2.setOnClickListener(onClickListener);
 		fab3.setOnClickListener(onClickListener);
@@ -359,6 +383,15 @@ public class MainActivity extends AppCompatActivity {
 				ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA,}, 1);
 			}
 		}
+	}
+
+
+	public boolean shouldLoadJavaScript() {
+		return !isBackAction;
+	}
+
+	public void resetLoadJavaScriptCondition() {
+		isBackAction = false;
 	}
 
 	@Override
@@ -397,9 +430,7 @@ public class MainActivity extends AppCompatActivity {
 					.setView(editText)
 					.setPositiveButton(R.string.search, (dialog, which) ->
 						webview.evaluateJavascript("javascript:searchKey('" + editText.getText() + "')",
-							value -> {
-								Log.d(TAG, "searchKey: " + editText.getText());
-							})
+							value -> Log.d(TAG, "searchKey: " + editText.getText()))
 					)
 					.create().show();
 				break;
@@ -415,6 +446,7 @@ public class MainActivity extends AppCompatActivity {
 		if (keyCode == KeyEvent.KEYCODE_BACK && event.getAction() == KeyEvent.ACTION_UP) {
 			if (webview.canGoBack()) {
 				webview.goBackOrForward(isAutoLanguage ? -2 : -1);
+				isBackAction = true;
 			} else {
 				finish();
 			}
