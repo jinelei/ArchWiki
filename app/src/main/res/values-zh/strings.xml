@@ -9,4 +9,6 @@
     <string name="select_preference_language">选择首选语言</string>
     <string name="refresh">刷新</string>
     <string name="search">搜索</string>
+    <string name="more_click_exit">再按一次退出</string>
+    <string name="cancel">取消</string>
 </resources>
