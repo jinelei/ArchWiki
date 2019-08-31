@@ -173,7 +173,7 @@ public class MainActivity extends AppCompatActivity {
 						}
 					});
 					// autoHideLang
-					webview.evaluateJavascript("javascript:autoHideLang()", val -> Log.d(TAG, "evaluateJavascript: autoHideLang"));
+					webview.evaluateJavascript("javascript:autoHideElement()", val -> Log.d(TAG, "evaluateJavascript: autoHideElement"));
 				});
 			if (!isAutoLanguage) {
 				webview.setVisibility(View.VISIBLE);
@@ -258,9 +258,12 @@ public class MainActivity extends AppCompatActivity {
 				"};"
 		);
 		ALL_JAVASCRIPT_FUNCTION.add(
-			"function autoHideLang(){" +
-				"    var langNode = document.querySelector('div#p-lang');" +
-				"    langNode.style.display = 'none';" +
+			"function autoHideElement(){" +
+				"    document.querySelector('div#p-lang').style.display = 'none';" +
+				"    document.querySelector('div#mw-navigation').style.display = 'none';" +
+				"    document.querySelector('div#mw-head-base').style.display = 'none';" +
+				"    document.querySelector('div#mw-page-base').style.display = 'none';" +
+				"    document.querySelector('div#archnavbar').style.display = 'none';" +
 				"};"
 		);
 	}
@@ -287,6 +290,7 @@ public class MainActivity extends AppCompatActivity {
 		fab1 = findViewById(R.id.fab_1);
 		fab2 = findViewById(R.id.fab_2);
 		fab3 = findViewById(R.id.fab_3);
+		fabMenu.setVisibility(View.GONE);
 		progressBar = findViewById(R.id.progressbar);
 		languagePopupWindow = new LanguagePopupWindow(MainActivity.this);
 		languagePopupWindow.setSelectLanguageModel(selectLanguageModel);
