@@ -14,17 +14,22 @@ import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.JsPromptResult;
 import android.webkit.JsResult;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.ActionBar;
@@ -62,7 +67,7 @@ public class MainActivity extends AppCompatActivity {
 	private static final int GROUP_ID_LANGUAGE = 10;
 	private static final int ITEM_ID_LANGUAGE_PREFERENCE = 11;
 	private static final int ITEM_ID_REFRESH = 12;
-	private static final int ITEM_ID_SEARCH = 13;
+	private static final long AUTO_HIDE_TIMEOUT = 5000;
 	private static LanguagePopupWindow.LanguageModel selectLanguageModel;
 	private CountDownLatch needBackKeyDown = new CountDownLatch(2);
 	private ActionBar supportActionBar;
@@ -77,19 +82,29 @@ public class MainActivity extends AppCompatActivity {
 	private boolean autoSetLanguage = false;
 	private boolean backAction = false;
 	
+	private final Runnable autoHideLoading = new Runnable() {
+		@Override
+		public void run() {
+			handler.sendEmptyMessage(HIDE_LOADING);
+		}
+	};
 	private final Handler handler = new Handler(Looper.getMainLooper(), new Handler.Callback() {
 		@Override
 		public boolean handleMessage(Message msg) {
 			switch (msg.what) {
 				case SHOW_LOADING:
+					Log.d(TAG, "handleMessage: SHOW_LOADING");
 					webview.setVisibility(View.GONE);
 					progressBar.setVisibility(View.VISIBLE);
 					fabMenu.setEnabled(false);
 					if (fabMenu.isExpanded()) {
 						fabMenu.collapseImmediately();
 					}
+					handler.postDelayed(autoHideLoading, AUTO_HIDE_TIMEOUT);
 					break;
 				case HIDE_LOADING:
+					Log.d(TAG, "handleMessage: HIDE_LOADING");
+					handler.removeCallbacks(autoHideLoading);
 					webview.setVisibility(View.VISIBLE);
 					progressBar.setVisibility(View.GONE);
 					fabMenu.setEnabled(true);
@@ -123,6 +138,24 @@ public class MainActivity extends AppCompatActivity {
 		}
 	};
 	private final WebViewClient webViewClient = new WebViewClient() {
+		@Override
+		public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+			super.onReceivedError(view, request, error);
+			Log.e(TAG, "onReceivedError: " + error.getErrorCode() + ": " + error.getDescription());
+			TextView textView = new TextView(MainActivity.this);
+			textView.setText(error.getDescription());
+			textView.setPadding(40, 10, 40, 10);
+			new AlertDialog.Builder(MainActivity.this)
+				.setTitle(R.string.page_load_error)
+				.setView(textView)
+				.setPositiveButton(R.string.confirm, (dialog, which) -> dialog.dismiss())
+				.setNegativeButton(R.string.retry, ((dialog, which) -> {
+					webview.reload();
+					dialog.dismiss();
+				}))
+				.create().show();
+		}
+		
 		@Override
 		public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
 			Log.d(TAG, "shouldOverrideUrlLoading: " + request.getUrl().toString());
@@ -175,8 +208,8 @@ public class MainActivity extends AppCompatActivity {
 				webview.setVisibility(View.VISIBLE);
 				handler.sendEmptyMessage(HIDE_LOADING);
 				resetLoadJavaScriptCondition();
+				super.onPageFinished(view, url);
 			}
-			super.onPageFinished(view, url);
 		}
 	};
 	private final WebChromeClient webChromeClient = new WebChromeClient() {
@@ -316,8 +349,30 @@ public class MainActivity extends AppCompatActivity {
 		fab2 = findViewById(R.id.fab_2);
 		fab3 = findViewById(R.id.fab_3);
 		fabMenu.setVisibility(View.GONE);
-		supportActionBar = getSupportActionBar();
 		progressBar = findViewById(R.id.progressbar);
+		initActionBar();
+		initLanguagePopupWindow();
+	}
+	
+	private void initActionBar() {
+		supportActionBar = getSupportActionBar();
+		LinearLayout linearLayout = new LinearLayout(MainActivity.this);
+		linearLayout.setOrientation(LinearLayout.HORIZONTAL);
+		linearLayout.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
+		linearLayout.setGravity(Gravity.CENTER_VERTICAL);
+		ImageView ivBookmark = new ImageView(MainActivity.this);
+		ivBookmark.setImageResource(R.drawable.ic_bookmark);
+		ivBookmark.setOnClickListener(v -> showBookmark());
+		linearLayout.addView(ivBookmark, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+		ImageView ivSearch = new ImageView(MainActivity.this);
+		ivSearch.setImageResource(R.drawable.ic_search);
+		ivSearch.setOnClickListener(v -> showSearchDialog());
+		linearLayout.addView(ivSearch, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+		supportActionBar.setDisplayShowCustomEnabled(true);
+		supportActionBar.setCustomView(linearLayout, new ActionBar.LayoutParams(Gravity.RIGHT | Gravity.CENTER_VERTICAL));
+	}
+	
+	private void initLanguagePopupWindow() {
 		languagePopupWindow = new LanguagePopupWindow(MainActivity.this);
 		languagePopupWindow.setSelectLanguageModel(selectLanguageModel);
 		languagePopupWindow.setOutsideTouchable(true);
@@ -325,7 +380,7 @@ public class MainActivity extends AppCompatActivity {
 		languagePopupWindow.setWidth(WindowManager.LayoutParams.MATCH_PARENT);
 		Point windowSize = new Point();
 		MainActivity.this.getWindowManager().getDefaultDisplay().getSize(windowSize);
-		languagePopupWindow.setHeight(windowSize.y / 3);
+		languagePopupWindow.setHeight(windowSize.y / 5 * 2);
 	}
 	
 	private void initEvent() {
@@ -359,7 +414,7 @@ public class MainActivity extends AppCompatActivity {
 		fab3.setOnClickListener(onClickListener);
 	}
 	
-	public void requestPermissions() {
+	private void requestPermissions() {
 		// checkSelfPermission 判断是否已经申请了此权限
 		if (ContextCompat.checkSelfPermission(this, Manifest.permission.INTERNET)
 			!= PERMISSION_GRANTED) {
@@ -373,13 +428,14 @@ public class MainActivity extends AppCompatActivity {
 		}
 	}
 	
-	public boolean shouldInjectJavaScript() {
+	private boolean shouldInjectJavaScript() {
 		Log.d(TAG, "shouldInjectJavaScript: " + true);
 		return true;
 	}
 	
-	public boolean shouldAutoSetLanguage() {
+	private boolean shouldAutoSetLanguage() {
 		boolean result = !autoSetLanguage
+			&& !backAction
 			&& null != selectLanguageModel
 			&& !Strings.isNullOrEmpty(selectLanguageModel.getDetailLang())
 			&& !Strings.isNullOrEmpty(selectLanguageModel.getSummaryLang())
@@ -389,23 +445,47 @@ public class MainActivity extends AppCompatActivity {
 		return result;
 	}
 	
-	public boolean isAutoSetLanguage() {
-		return autoSetLanguage;
-	}
-	
-	public boolean shouldFindAllLanguage() {
+	private boolean shouldFindAllLanguage() {
 		Log.d(TAG, "shouldFindAllLanguage: " + true);
 		return true;
 	}
 	
-	public boolean shouldHideElements() {
+	private boolean shouldHideElements() {
 		Log.d(TAG, "shouldHideElements: " + true);
 		return true;
 	}
 	
-	public void resetLoadJavaScriptCondition() {
+	private void resetLoadJavaScriptCondition() {
+		Log.d(TAG, "resetLoadJavaScriptCondition");
 		backAction = false;
 		autoSetLanguage = false;
+	}
+	
+	private void showBookmark() {
+		Log.d(TAG, "click bookmark");
+		new AlertDialog.Builder(MainActivity.this)
+			.setTitle(R.string.bookmark)
+			.setPositiveButton(R.string.confirm, (dialog, which) -> dialog.dismiss())
+			.create().show();
+	}
+	
+	private void showSearchDialog() {
+		Log.d(TAG, "showSearchDialog");
+		LinearLayout ll = new LinearLayout(MainActivity.this);
+		ll.setPadding(40, 20, 40, 20);
+		EditText editText = new EditText(MainActivity.this);
+		editText.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+		ll.addView(editText);
+		new AlertDialog.Builder(MainActivity.this)
+			.setTitle(R.string.search)
+			.setView(ll)
+			.setPositiveButton(R.string.search, (dialog, which) -> {
+				if (!Strings.isNullOrEmpty(editText.getText().toString())) {
+					webview.evaluateJavascript("javascript:searchKey('" + editText.getText() + "')",
+						value -> Log.d(TAG, "searchKey: " + editText.getText()));
+				}
+			})
+			.create().show();
 	}
 	
 	@Override
@@ -414,7 +494,6 @@ public class MainActivity extends AppCompatActivity {
 		Log.d(TAG, "onCreateOptionsMenu: ");
 		menu.addSubMenu(GROUP_ID_LANGUAGE, ITEM_ID_LANGUAGE_PREFERENCE, 0, R.string.language_preference);
 		menu.add(GROUP_ID_LANGUAGE, ITEM_ID_REFRESH, 1, R.string.refresh);
-		menu.add(GROUP_ID_LANGUAGE, ITEM_ID_SEARCH, 1, R.string.search);
 		return true;
 	}
 	
@@ -438,16 +517,6 @@ public class MainActivity extends AppCompatActivity {
 				handler.sendEmptyMessage(SHOW_LOADING);
 				webview.reload();
 				break;
-			case ITEM_ID_SEARCH:
-				EditText editText = new EditText(MainActivity.this);
-				new AlertDialog.Builder(MainActivity.this)
-					.setView(editText)
-					.setPositiveButton(R.string.search, (dialog, which) ->
-						webview.evaluateJavascript("javascript:searchKey('" + editText.getText() + "')",
-							value -> Log.d(TAG, "searchKey: " + editText.getText()))
-					)
-					.create().show();
-				break;
 			default:
 				Toast.makeText(MainActivity.this, "default", Toast.LENGTH_SHORT).show();
 				break;
@@ -458,10 +527,11 @@ public class MainActivity extends AppCompatActivity {
 	@Override
 	public boolean onKeyUp(int keyCode, KeyEvent event) {
 		if (keyCode == KeyEvent.KEYCODE_BACK && event.getAction() == KeyEvent.ACTION_UP) {
-			Log.d(TAG, "canGoBackOrForward: " + webview.canGoBackOrForward(isAutoSetLanguage() ? -2 : -1));
-			if (webview.canGoBackOrForward(isAutoSetLanguage() ? -2 : -1)) {
+			Log.d(TAG, "canGoBackOrForward: " + webview.canGoBack());
+			if (webview.canGoBack()) {
 				// 如果有自动设置语言就回退两次
-				webview.goBackOrForward(isAutoSetLanguage() ? -2 : -1);
+				handler.sendEmptyMessage(SHOW_LOADING);
+				webview.goBack();
 				backAction = true;
 			} else {
 				if (CommonUtils.isFastClick(MainActivity.this)) {

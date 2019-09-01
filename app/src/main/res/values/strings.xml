@@ -11,4 +11,7 @@
     <string name="search">search</string>
     <string name="more_click_exit">more click to exit</string>
     <string name="cancel">cancel</string>
+    <string name="retry">retry</string>
+    <string name="page_load_error">page loading error</string>
+    <string name="bookmark">bookmark</string>
 </resources>
