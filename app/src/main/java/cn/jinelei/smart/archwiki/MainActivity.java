@@ -48,15 +48,17 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 
+import cn.jinelei.smart.archwiki.common.utils.CommonUtils;
 import cn.jinelei.smart.archwiki.intf.IJavaScriptInterface;
-import cn.jinelei.smart.archwiki.utils.CommonUtils;
 import cn.jinelei.smart.archwiki.views.LanguagePopupWindow;
 
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
-import static cn.jinelei.smart.archwiki.constants.ArchConstants.Handler.CANCEL_SELECT_LANGUAGE;
-import static cn.jinelei.smart.archwiki.constants.ArchConstants.Handler.CONFIRM_SELECT_LANGUAGE;
-import static cn.jinelei.smart.archwiki.constants.ArchConstants.Handler.HIDE_LOADING;
-import static cn.jinelei.smart.archwiki.constants.ArchConstants.Handler.SHOW_LOADING;
+import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.CANCEL_SELECT_LANGUAGE;
+import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.CONFIRM_SELECT_LANGUAGE;
+import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.HIDE_LOADING;
+import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.SHOW_ERROR;
+import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.SHOW_LOADING;
+import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.TIMEOUT_HIDE_LOADING;
 
 public class MainActivity extends AppCompatActivity {
 	private static final String TAG = "MainActivity";
@@ -64,6 +66,7 @@ public class MainActivity extends AppCompatActivity {
 	private static final String JS_SRC_RULE;
 	private static final List<String> ALL_JAVASCRIPT_FUNCTION;
 	private static final List<LanguagePopupWindow.LanguageModel> ALL_LANGUAGE;
+	private static final LanguagePopupWindow.LanguageModel ENGLISH_LANGUAGE_MODEL;
 	private static final int GROUP_ID_LANGUAGE = 10;
 	private static final int ITEM_ID_LANGUAGE_PREFERENCE = 11;
 	private static final int ITEM_ID_REFRESH = 12;
@@ -79,13 +82,13 @@ public class MainActivity extends AppCompatActivity {
 	private WebView webview;
 	private CoordinatorLayout clMain;
 	private LanguagePopupWindow languagePopupWindow;
-	private boolean autoSetLanguage = false;
-	private boolean backAction = false;
+	private String baseUrl = null; // baseUrl is without language option url
+	private boolean isSearchAction = false;
 	
 	private final Runnable autoHideLoading = new Runnable() {
 		@Override
 		public void run() {
-			handler.sendEmptyMessage(HIDE_LOADING);
+			handler.sendEmptyMessage(TIMEOUT_HIDE_LOADING);
 		}
 	};
 	private final Handler handler = new Handler(Looper.getMainLooper(), new Handler.Callback() {
@@ -100,6 +103,7 @@ public class MainActivity extends AppCompatActivity {
 					if (fabMenu.isExpanded()) {
 						fabMenu.collapseImmediately();
 					}
+					handler.removeCallbacks(autoHideLoading);
 					handler.postDelayed(autoHideLoading, AUTO_HIDE_TIMEOUT);
 					break;
 				case HIDE_LOADING:
@@ -112,10 +116,42 @@ public class MainActivity extends AppCompatActivity {
 						fabMenu.collapseImmediately();
 					}
 					break;
+				case SHOW_ERROR:
+					Log.d(TAG, "handleMessage: SHOW_ERROR");
+					handler.removeCallbacks(autoHideLoading);
+					webview.setVisibility(View.GONE);
+					progressBar.setVisibility(View.GONE);
+					fabMenu.setEnabled(true);
+					if (fabMenu.isExpanded()) {
+						fabMenu.collapseImmediately();
+					}
+					LinearLayout ll = new LinearLayout(MainActivity.this);
+					ll.setPadding(40, 20, 40, 20);
+					TextView textView = new TextView(MainActivity.this);
+					textView.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+					textView.setText(Optional.ofNullable(msg.obj).map(Object::toString).orElse(MainActivity.this.getString(R.string.page_load_error)));
+					ll.addView(textView);
+					new AlertDialog.Builder(MainActivity.this)
+						.setTitle(R.string.page_load_error)
+						.setView(ll)
+						.setPositiveButton(R.string.confirm, ((dialog, which) -> dialog.dismiss()))
+						.create().show();
+					break;
+				case TIMEOUT_HIDE_LOADING:
+					Log.d(TAG, "handleMessage: TIMEOUT_HIDE_LOADING");
+					handler.removeCallbacks(autoHideLoading);
+					webview.setVisibility(View.VISIBLE);
+					progressBar.setVisibility(View.GONE);
+					fabMenu.setEnabled(true);
+					if (fabMenu.isExpanded()) {
+						fabMenu.collapseImmediately();
+					}
+					break;
 				case CONFIRM_SELECT_LANGUAGE:
 					Log.d(TAG, "handleMessage: CONFIRM_SELECT_LANGUAGE");
 					selectLanguageModel = (LanguagePopupWindow.LanguageModel) msg.obj;
-					webview.reload();
+					webview.loadUrl(baseUrl + selectLanguageModel.getHrefSuffix());
+					handler.sendEmptyMessage(SHOW_LOADING);
 					break;
 				case CANCEL_SELECT_LANGUAGE:
 					Log.d(TAG, "handleMessage: CANCEL_SELECT_LANGUAGE");
@@ -158,56 +194,76 @@ public class MainActivity extends AppCompatActivity {
 		
 		@Override
 		public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-			Log.d(TAG, "shouldOverrideUrlLoading: " + request.getUrl().toString());
 			try {
-				resetLoadJavaScriptCondition();
+				String url = Optional.ofNullable(request)
+					.filter(r -> null != r.getUrl() && !Strings.isNullOrEmpty(r.getUrl().toString()))
+					.map(r -> r.getUrl().toString()).orElseThrow(Throwable::new);
+				Log.d(TAG, "shouldOverrideUrlLoading: " + url);
 				handler.sendEmptyMessage(SHOW_LOADING);
-				view.loadUrl(request.getUrl().toString());
+				webview.loadUrl(url);
+			} catch (Throwable throwable) {
+				throwable.printStackTrace();
+				Message obtain = Message.obtain();
+				obtain.what = SHOW_ERROR;
+				obtain.obj = throwable.getMessage();
+				handler.sendMessage(obtain);
+			} finally {
 				return true;
-			} catch (Exception e) {
-				e.printStackTrace();
-				return false;
 			}
 		}
 		
 		@Override
 		public void onPageStarted(WebView view, String url, Bitmap favicon) {
 			super.onPageStarted(view, url, favicon);
-			Log.d(TAG, "onPageStarted: " + url);
+			baseUrl = Optional.ofNullable(url)
+				.filter(s -> !Strings.isNullOrEmpty(url) && !Strings.isNullOrEmpty(selectLanguageModel.getHrefSuffix()) && url.length() >= selectLanguageModel.getHrefSuffix().length())
+				.map(u -> isSearchAction ? u : u.substring(0, u.length() - selectLanguageModel.getHrefSuffix().length()))
+				.orElse(ARCH_URI);
+			Log.d(TAG, "onPageStarted: " + url + " <<<<>>>> " + baseUrl);
+			if (isSearchAction) {
+				isSearchAction = false;
+				selectLanguageModel = ENGLISH_LANGUAGE_MODEL;
+				languagePopupWindow.setSelectLanguageModel(ENGLISH_LANGUAGE_MODEL);
+			}
 			handler.sendEmptyMessage(SHOW_LOADING);
 		}
 		
 		@Override
 		public void onPageFinished(WebView view, String url) {
 			Log.d(TAG, "onPageFinished: " + url);
-			if (shouldInjectJavaScript()) {
-				view.evaluateJavascript(String.format(JS_SRC_RULE,
-					ALL_JAVASCRIPT_FUNCTION.stream().reduce("", (s, s2) -> s + s2)),
-					value -> {
-						if (shouldFindAllLanguage()) {
-							webview.evaluateJavascript("javascript:findAllLanguageAll()", val -> {
-								List<LanguagePopupWindow.LanguageModel> collect = LanguagePopupWindow.Utils.convertStringToLanguageModelList(val);
-								Log.d(TAG, "findAllLanguage: " + collect);
-								ALL_LANGUAGE.clear();
-								ALL_LANGUAGE.addAll(collect);
-								languagePopupWindow.resetAllLanguage(collect);
-								if (shouldAutoSetLanguage()) {
-									autoSetLanguage = true;
-									Log.d(TAG, "auto set language: load url: " + selectLanguageModel.getHref());
-									// 这里会重新加载网页
-									webview.loadUrl(selectLanguageModel.getHref());
-								}
-							});
-						}
-						if (shouldHideElements()) {
-							webview.evaluateJavascript("javascript:autoHideElement()", null);
-						}
-					});
-			}
-			if (!shouldAutoSetLanguage()) {
-				webview.setVisibility(View.VISIBLE);
-				handler.sendEmptyMessage(HIDE_LOADING);
-				resetLoadJavaScriptCondition();
+			try {
+				if (shouldInjectJavaScript()) {
+					// step 1: inject all javascript
+					view.evaluateJavascript(String.format(JS_SRC_RULE,
+						ALL_JAVASCRIPT_FUNCTION.stream().reduce("", (s, s2) -> s + s2)),
+						value -> {
+							Log.d(TAG, "step 1: inject javascript success");
+							// step 2: query all available language
+							if (shouldFindAllLanguage()) {
+								webview.evaluateJavascript("javascript:findAllLanguageAll()", val -> {
+									List<LanguagePopupWindow.LanguageModel> collect = LanguagePopupWindow.Utils.convertStringToLanguageModelList(val);
+									Log.d(TAG, "step 2: find all language success");
+									Log.v(TAG, "findAllLanguageAll: " + collect);
+									ALL_LANGUAGE.addAll(collect);
+									languagePopupWindow.resetAllLanguage(ALL_LANGUAGE);
+								});
+							}
+							// step 3: should hide some elements
+							if (shouldHideElements()) {
+								webview.evaluateJavascript("javascript:autoHideElement()", value1 -> Log.d(TAG, "step 3: auto hide elements success"));
+							}
+							handler.sendEmptyMessage(HIDE_LOADING);
+						});
+				} else {
+					handler.sendEmptyMessage(HIDE_LOADING);
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+				Message obtain = Message.obtain();
+				obtain.what = SHOW_ERROR;
+				obtain.obj = e.getMessage();
+				handler.sendMessage(obtain);
+			} finally {
 				super.onPageFinished(view, url);
 			}
 		}
@@ -288,12 +344,15 @@ public class MainActivity extends AppCompatActivity {
 		}
 	};
 	
+	
 	static {
 //		ARCH_URI = "file:///android_asset/web/index.html";
 		ALL_JAVASCRIPT_FUNCTION = new ArrayList<>();
+		ARCH_URI = "https://wiki.archlinux.org/index.php/Main_page";
 		ALL_LANGUAGE = new ArrayList<>();
-		ARCH_URI = "https://wiki.archlinux.org/";
-		selectLanguageModel = new LanguagePopupWindow.LanguageModel("zh-Hans", "简体中文", "https://wiki.archlinux.org/index.php/Main_page_(%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87)");
+		selectLanguageModel = new LanguagePopupWindow.LanguageModel("en", "English", "");
+		ENGLISH_LANGUAGE_MODEL = new LanguagePopupWindow.LanguageModel("en", "English", "");
+		ALL_LANGUAGE.add(selectLanguageModel.clone());
 		JS_SRC_RULE = "var obj = document.createElement(\"script\");"
 			+ "obj.type=\"text/javascript\";"
 			+ "obj.innerText=\"%s\";"
@@ -301,7 +360,7 @@ public class MainActivity extends AppCompatActivity {
 		ALL_JAVASCRIPT_FUNCTION.add(
 			"function findAllLanguageAll(){" +
 				"    var allLanguageNodeList = document.querySelectorAll('a.interlanguage-link-target');" +
-				"    var allLanguageString = Array.from(allLanguageNodeList).flatMap(ele => ele.lang + '^' + ele.innerText + '^' + ele.href);" +
+				"    var allLanguageString = Array.from(allLanguageNodeList).flatMap(ele => ele.lang + '^' + ele.innerText + '^' + (ele.href.length >=46 ? ele.href.substr(46) : ''));" +
 				"    return allLanguageString;" +
 				"};"
 		);
@@ -433,32 +492,14 @@ public class MainActivity extends AppCompatActivity {
 		return true;
 	}
 	
-	private boolean shouldAutoSetLanguage() {
-		boolean result = !autoSetLanguage
-			&& !backAction
-			&& null != selectLanguageModel
-			&& !Strings.isNullOrEmpty(selectLanguageModel.getDetailLang())
-			&& !Strings.isNullOrEmpty(selectLanguageModel.getSummaryLang())
-			&& !Strings.isNullOrEmpty(selectLanguageModel.getHref())
-			&& LanguagePopupWindow.Utils.contains(ALL_LANGUAGE, selectLanguageModel); // 如果包含说明可以自动选择语言
-		Log.d(TAG, "shouldAutoSetLanguage: " + result);
-		return result;
-	}
-	
 	private boolean shouldFindAllLanguage() {
-		Log.d(TAG, "shouldFindAllLanguage: " + true);
-		return true;
+		Log.d(TAG, "shouldFindAllLanguage: " + (ALL_LANGUAGE.size() <= 1));
+		return ALL_LANGUAGE.size() <= 1;
 	}
 	
 	private boolean shouldHideElements() {
 		Log.d(TAG, "shouldHideElements: " + true);
 		return true;
-	}
-	
-	private void resetLoadJavaScriptCondition() {
-		Log.d(TAG, "resetLoadJavaScriptCondition");
-		backAction = false;
-		autoSetLanguage = false;
 	}
 	
 	private void showBookmark() {
@@ -481,6 +522,7 @@ public class MainActivity extends AppCompatActivity {
 			.setView(ll)
 			.setPositiveButton(R.string.search, (dialog, which) -> {
 				if (!Strings.isNullOrEmpty(editText.getText().toString())) {
+					isSearchAction = true;
 					webview.evaluateJavascript("javascript:searchKey('" + editText.getText() + "')",
 						value -> Log.d(TAG, "searchKey: " + editText.getText()));
 				}
@@ -532,7 +574,6 @@ public class MainActivity extends AppCompatActivity {
 				// 如果有自动设置语言就回退两次
 				handler.sendEmptyMessage(SHOW_LOADING);
 				webview.goBack();
-				backAction = true;
 			} else {
 				if (CommonUtils.isFastClick(MainActivity.this)) {
 					needBackKeyDown.countDown();

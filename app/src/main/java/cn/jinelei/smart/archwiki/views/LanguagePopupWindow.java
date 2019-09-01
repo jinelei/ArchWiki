@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import cn.jinelei.smart.archwiki.R;
-import cn.jinelei.smart.archwiki.constants.ArchConstants;
+import cn.jinelei.smart.archwiki.common.constants.CommonConstants;
 
 public class LanguagePopupWindow extends PopupWindow implements View.OnClickListener {
 	private static final String TAG = "LanguagePopupWindow";
@@ -94,7 +94,7 @@ public class LanguagePopupWindow extends PopupWindow implements View.OnClickList
 				if (null != tempSelectLanguageModel) {
 					selectLanguageModel = tempSelectLanguageModel;
 					Message obtain = Message.obtain();
-					obtain.what = ArchConstants.Handler.CONFIRM_SELECT_LANGUAGE;
+					obtain.what = CommonConstants.Handler.CONFIRM_SELECT_LANGUAGE;
 					obtain.obj = tempSelectLanguageModel;
 					Log.d(TAG, "select language: " + tempSelectLanguageModel);
 					tvTitle.setText(context.getString(R.string.select_preference_language) + ": " + selectLanguageModel.getDetailLang());
@@ -104,7 +104,7 @@ public class LanguagePopupWindow extends PopupWindow implements View.OnClickList
 				break;
 			case R.id.tv_cancel:
 				tvTitle.setText(context.getString(R.string.select_preference_language) + ": " + selectLanguageModel.getDetailLang());
-				handler.sendEmptyMessage(ArchConstants.Handler.CANCEL_SELECT_LANGUAGE);
+				handler.sendEmptyMessage(CommonConstants.Handler.CANCEL_SELECT_LANGUAGE);
 				dismiss();
 				break;
 		}
@@ -150,10 +150,10 @@ public class LanguagePopupWindow extends PopupWindow implements View.OnClickList
 		}
 	}
 	
-	public static class LanguageModel {
+	public static class LanguageModel implements Cloneable {
 		private String summaryLang;
 		private String detailLang;
-		private String href;
+		private String hrefSuffix;
 		
 		public String getSummaryLang() {
 			return summaryLang;
@@ -163,14 +163,19 @@ public class LanguagePopupWindow extends PopupWindow implements View.OnClickList
 			return detailLang;
 		}
 		
-		public String getHref() {
-			return href;
+		public String getHrefSuffix() {
+			return hrefSuffix;
 		}
 		
-		public LanguageModel(String summaryLang, String detailLang, String href) {
+		public LanguageModel(String summaryLang, String detailLang, String hrefSuffix) {
 			this.summaryLang = summaryLang;
 			this.detailLang = detailLang;
-			this.href = href;
+			this.hrefSuffix = hrefSuffix;
+		}
+		
+		@Override
+		public LanguageModel clone() {
+			return new LanguageModel(this.summaryLang, this.detailLang, this.hrefSuffix);
 		}
 		
 		@Override
@@ -178,7 +183,7 @@ public class LanguagePopupWindow extends PopupWindow implements View.OnClickList
 			return "LanguageModel{" +
 				"summaryLang='" + summaryLang + '\'' +
 				", detailLang='" + detailLang + '\'' +
-				", href='" + href + '\'' +
+				", hrefSuffix='" + hrefSuffix + '\'' +
 				'}';
 		}
 	}
@@ -195,7 +200,7 @@ public class LanguagePopupWindow extends PopupWindow implements View.OnClickList
 					.map(s -> s.substring(1, s.length() - 1))
 					.map(s -> s.split("\\^"))
 					.filter(s -> s.length >= 3)
-					.map(ss -> new LanguagePopupWindow.LanguageModel(ss[0], ss[1], ss[2]))
+					.map(ss -> new LanguageModel(ss[0], ss[1], ss[2]))
 					.collect(Collectors.toList());
 			} catch (Exception e) {
 				return new ArrayList<>();
