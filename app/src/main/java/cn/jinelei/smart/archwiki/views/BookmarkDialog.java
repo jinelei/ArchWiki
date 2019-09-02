@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Optional;
 
 import cn.jinelei.smart.archwiki.R;
+import cn.jinelei.smart.archwiki.common.utils.SharedUtils;
 
 import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.GOTO_ANOTHER_URL;
 
@@ -141,6 +142,7 @@ public class BookmarkDialog extends Dialog {
 			e.printStackTrace();
 			Log.e(TAG, "clearAllData");
 		} finally {
+			writeToShared();
 			refreshUI();
 		}
 	}
@@ -168,6 +170,7 @@ public class BookmarkDialog extends Dialog {
 			Log.e(TAG, "addData: " + bookmarkModel);
 			Toast.makeText(this.context, this.context.getString(R.string.add_bookmark_failure), Toast.LENGTH_SHORT).show();
 		} finally {
+			writeToShared();
 			refreshUI();
 		}
 	}
@@ -186,8 +189,14 @@ public class BookmarkDialog extends Dialog {
 		} finally {
 			Toast.makeText(this.context, this.context.getString(removeResult ? R.string.remove_bookmark_success : R.string.remove_bookmark_failure), Toast.LENGTH_SHORT).show();
 			refreshUI();
+			writeToShared();
 			return removeResult;
 		}
+	}
+
+	public void writeToShared() {
+		SharedUtils.setParam(BookmarkDialog.this.context, SharedUtils.DEFAULT_NAME, SharedUtils.TAG_ALL_BOOKMARK,
+			models.stream().map(bookmarkModel -> bookmarkModel.getTitle() + "^" + bookmarkModel.getUrl()).reduce("", (s, s2) -> s + s2));
 	}
 
 	public class BookmarkAdapter extends RecyclerView.Adapter<BookmarkViewHolder> {

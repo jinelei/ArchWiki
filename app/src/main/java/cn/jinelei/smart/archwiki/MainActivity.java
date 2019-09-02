@@ -49,6 +49,7 @@ import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 
 import cn.jinelei.smart.archwiki.common.utils.CommonUtils;
+import cn.jinelei.smart.archwiki.common.utils.SharedUtils;
 import cn.jinelei.smart.archwiki.intf.IJavaScriptInterface;
 import cn.jinelei.smart.archwiki.views.BookmarkDialog;
 import cn.jinelei.smart.archwiki.views.LanguagePopupWindow;
@@ -424,10 +425,9 @@ public class MainActivity extends AppCompatActivity {
 		fab3 = findViewById(R.id.fab_3);
 		fabMenu.setVisibility(View.GONE);
 		progressBar = findViewById(R.id.progressbar);
-		bookmarkDialog = new BookmarkDialog(MainActivity.this);
-		bookmarkDialog.addHandler(this.handler);
 		initActionBar();
 		initLanguagePopupWindow();
+		initBookmark();
 	}
 
 	private void initActionBar() {
@@ -457,6 +457,20 @@ public class MainActivity extends AppCompatActivity {
 		Point windowSize = new Point();
 		MainActivity.this.getWindowManager().getDefaultDisplay().getSize(windowSize);
 		languagePopupWindow.setHeight(windowSize.y / 5 * 2);
+	}
+
+	private void initBookmark() {
+		bookmarkDialog = new BookmarkDialog(MainActivity.this);
+		bookmarkDialog.addHandler(this.handler);
+		Optional.ofNullable(SharedUtils.getParam(MainActivity.this, SharedUtils.DEFAULT_NAME, SharedUtils.TAG_ALL_BOOKMARK, new Object()))
+			.filter(o -> o instanceof List)
+			.map(o -> (ArrayList<Object>) o)
+			.ifPresent(list -> {
+				list.stream()
+					.filter(o -> o instanceof BookmarkDialog.BookmarkModel)
+					.map(o -> (BookmarkDialog.BookmarkModel) o)
+					.forEach(bookmarkModel -> MainActivity.this.bookmarkDialog.addData(bookmarkModel));
+			});
 	}
 
 	private void initEvent() {
