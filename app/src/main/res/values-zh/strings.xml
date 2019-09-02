@@ -14,4 +14,13 @@
     <string name="retry">重试</string>
     <string name="page_load_error">页面加载错误</string>
     <string name="bookmark">书签</string>
+    <string name="add_bookmark">添加书签</string>
+    <string name="there_is_nothing">这里什么都没有哦</string>
+    <string name="already_exist_same_bookmark">已存在相同的书签</string>
+    <string name="add_bookmark_success">添加书签成功</string>
+    <string name="add_bookmark_failure">添加书签失败</string>
+    <string name="remove_bookmark_success">删除书签成功</string>
+    <string name="remove_bookmark_failure">删除书签失败</string>
+    <string name="loading_bookmark">正在加载书签</string>
+
 </resources>

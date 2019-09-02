@@ -14,4 +14,12 @@
     <string name="retry">retry</string>
     <string name="page_load_error">page loading error</string>
     <string name="bookmark">bookmark</string>
+    <string name="add_bookmark">add bookmark</string>
+    <string name="there_is_nothing">there is nothing</string>
+    <string name="already_exist_same_bookmark">already exist same bookmark</string>
+    <string name="add_bookmark_success">add bookmark success</string>
+    <string name="add_bookmark_failure">add bookmark failure</string>
+    <string name="remove_bookmark_success">remove bookmark success</string>
+    <string name="remove_bookmark_failure">remove bookmark failure</string>
+    <string name="loading_bookmark">loading bookmark</string>
 </resources>

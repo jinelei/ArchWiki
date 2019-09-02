@@ -37,24 +37,24 @@ public class LanguagePopupWindow extends PopupWindow implements View.OnClickList
 	private View rootView;
 	private RecyclerView.Adapter adapter;
 	private TextView tvTitle;
-	
+
 	public LanguagePopupWindow(Context context) {
 		this(context, null);
 	}
-	
+
 	public LanguagePopupWindow(Context context, AttributeSet attrs) {
 		this(context, attrs, 0);
 	}
-	
+
 	public LanguagePopupWindow(Context context, AttributeSet attrs, int defStyleAttr) {
 		this(context, attrs, defStyleAttr, 0);
 	}
-	
+
 	public LanguagePopupWindow(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
 		super(context, attrs, defStyleAttr, defStyleRes);
 		initLanguagePopupWindow(context);
 	}
-	
+
 	private void initLanguagePopupWindow(Context context) {
 		this.context = context;
 		this.adapter = new LanguageAdapter();
@@ -68,23 +68,24 @@ public class LanguagePopupWindow extends PopupWindow implements View.OnClickList
 		setOnDismissListener(() -> tvTitle.setText(context.getString(R.string.select_preference_language) + ": " + selectLanguageModel.getDetailLang()));
 		rvLanguage.setLayoutManager(new LinearLayoutManager(context));
 		rvLanguage.setAdapter(adapter);
+		this.setAnimationStyle(R.style.popupWindowAnimStyle);
 	}
-	
+
 	public void setHandler(Handler handler) {
 		this.handler = handler;
 	}
-	
+
 	public void setSelectLanguageModel(LanguageModel selectLanguageModel) {
 		this.selectLanguageModel = selectLanguageModel;
 		tvTitle.setText(selectLanguageModel.getDetailLang());
 	}
-	
+
 	public void resetAllLanguage(List<LanguageModel> languages) {
 		allLanguageString.clear();
 		allLanguageString.addAll(languages);
 		this.adapter.notifyDataSetChanged();
 	}
-	
+
 	@Override
 	public void onClick(View v) {
 		switch (v.getId()) {
@@ -109,7 +110,7 @@ public class LanguagePopupWindow extends PopupWindow implements View.OnClickList
 				break;
 		}
 	}
-	
+
 	private class LanguageAdapter extends RecyclerView.Adapter<LanguageViewHolder> {
 		@NonNull
 		@Override
@@ -117,7 +118,7 @@ public class LanguagePopupWindow extends PopupWindow implements View.OnClickList
 			View rootView = LayoutInflater.from(parent.getContext()).inflate(R.layout.view_holder_language, parent, false);
 			return new LanguageViewHolder(rootView);
 		}
-		
+
 		@Override
 		public void onBindViewHolder(@NonNull LanguageViewHolder holder, int position) {
 			try {
@@ -134,50 +135,50 @@ public class LanguagePopupWindow extends PopupWindow implements View.OnClickList
 				throwable.printStackTrace();
 			}
 		}
-		
+
 		@Override
 		public int getItemCount() {
 			return allLanguageString.size();
 		}
 	}
-	
+
 	class LanguageViewHolder extends RecyclerView.ViewHolder {
 		TextView language;
-		
+
 		private LanguageViewHolder(View itemView) {
 			super(itemView);
 			language = itemView.findViewById(R.id.vh_tv_language);
 		}
 	}
-	
+
 	public static class LanguageModel implements Cloneable {
 		private String summaryLang;
 		private String detailLang;
 		private String hrefSuffix;
-		
+
 		public String getSummaryLang() {
 			return summaryLang;
 		}
-		
+
 		public String getDetailLang() {
 			return detailLang;
 		}
-		
+
 		public String getHrefSuffix() {
 			return hrefSuffix;
 		}
-		
+
 		public LanguageModel(String summaryLang, String detailLang, String hrefSuffix) {
 			this.summaryLang = summaryLang;
 			this.detailLang = detailLang;
 			this.hrefSuffix = hrefSuffix;
 		}
-		
+
 		@Override
 		public LanguageModel clone() {
 			return new LanguageModel(this.summaryLang, this.detailLang, this.hrefSuffix);
 		}
-		
+
 		@Override
 		public String toString() {
 			return "LanguageModel{" +
@@ -187,9 +188,9 @@ public class LanguagePopupWindow extends PopupWindow implements View.OnClickList
 				'}';
 		}
 	}
-	
+
 	public static class Utils {
-		
+
 		public static List<LanguageModel> convertStringToLanguageModelList(String val) {
 			try {
 				return Stream.of(val)
@@ -206,7 +207,7 @@ public class LanguagePopupWindow extends PopupWindow implements View.OnClickList
 				return new ArrayList<>();
 			}
 		}
-		
+
 		public static boolean contains(Collection<LanguageModel> models, LanguageModel languageModel) {
 			if (null == languageModel
 				|| Strings.isNullOrEmpty(languageModel.getDetailLang())
@@ -221,6 +222,6 @@ public class LanguagePopupWindow extends PopupWindow implements View.OnClickList
 			}
 			return false;
 		}
-		
+
 	}
 }

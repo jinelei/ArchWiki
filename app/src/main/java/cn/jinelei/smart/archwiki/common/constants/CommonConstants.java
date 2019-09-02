@@ -8,5 +8,6 @@ public class CommonConstants {
 		public static final int SHOW_ERROR = 10004;
 		public static final int CONFIRM_SELECT_LANGUAGE = 10012;
 		public static final int CANCEL_SELECT_LANGUAGE = 10013;
+		public static final int GOTO_ANOTHER_URL = 10014;
 	}
 }
