@@ -29,6 +29,7 @@ import java.util.Optional;
 
 import cn.jinelei.smart.archwiki.R;
 import cn.jinelei.smart.archwiki.common.utils.SharedUtils;
+import cn.jinelei.smart.archwiki.models.BookmarkModel;
 
 import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.GOTO_ANOTHER_URL;
 
@@ -42,23 +43,23 @@ public class BookmarkDialog extends Dialog {
 	private RecyclerView.Adapter bookmarkAdapter;
 	private Handler handler = null;
 	private TextView tvNothing;
-
+	
 	public BookmarkDialog(@NonNull Context context) {
 		this(context, 0);
 	}
-
+	
 	public BookmarkDialog(@NonNull Context context, int themeResId) {
 		super(context, themeResId);
 		this.context = context;
 		initBookmarkDialog();
 	}
-
+	
 	protected BookmarkDialog(@NonNull Context context, boolean cancelable, @Nullable OnCancelListener cancelListener) {
 		super(context, cancelable, cancelListener);
 		this.context = context;
 		initBookmarkDialog();
 	}
-
+	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -68,7 +69,7 @@ public class BookmarkDialog extends Dialog {
 		initEvent();
 		refreshUI();
 	}
-
+	
 	private void initBookmarkDialog() {
 		setCanceledOnTouchOutside(isCanceledOnTouchOutside);
 		setCancelable(isCancelable);
@@ -87,7 +88,7 @@ public class BookmarkDialog extends Dialog {
 		window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 //		window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
 	}
-
+	
 	private void initView() {
 		rvBookmark = findViewById(R.id.rv_bookmark);
 		tvNothing = findViewById(R.id.tv_nothing);
@@ -95,49 +96,54 @@ public class BookmarkDialog extends Dialog {
 		bookmarkAdapter = new BookmarkAdapter();
 		rvBookmark.setAdapter(bookmarkAdapter);
 	}
-
+	
 	private void initEvent() {
 		findViewById(R.id.tv_confirm).setOnClickListener(v -> BookmarkDialog.this.dismiss());
 	}
-
+	
 	private void refreshUI() {
 		if (models.isEmpty()) {
-			tvNothing.setVisibility(View.VISIBLE);
-			rvBookmark.setVisibility(View.GONE);
+			if (tvNothing != null)
+				tvNothing.setVisibility(View.VISIBLE);
+			if (rvBookmark != null)
+				rvBookmark.setVisibility(View.GONE);
 		} else {
-			tvNothing.setVisibility(View.GONE);
-			rvBookmark.setVisibility(View.VISIBLE);
+			if (tvNothing != null)
+				tvNothing.setVisibility(View.GONE);
+			if (rvBookmark != null)
+				rvBookmark.setVisibility(View.VISIBLE);
 		}
 	}
-
+	
 	public void updateCanceledOnTouchOutside(boolean canceledOnTouchOutside) {
 		this.isCanceledOnTouchOutside = canceledOnTouchOutside;
 		this.setCanceledOnTouchOutside(canceledOnTouchOutside);
 	}
-
+	
 	public void updateSetCancelable(boolean setCancelable) {
 		this.isCancelable = setCancelable;
 		this.setCancelable(setCancelable);
 	}
-
+	
 	public boolean isCanceledOnTouchOutside() {
 		return isCanceledOnTouchOutside;
 	}
-
+	
 	public boolean isSetCancelable() {
 		return isCancelable;
 	}
-
+	
 	public void addHandler(Handler handler) {
 		if (handler != null)
 			this.handler = handler;
 	}
-
+	
 	public void clearAllData() {
 		try {
 			Log.d(TAG, "clearAllData");
 			models.clear();
-			bookmarkAdapter.notifyDataSetChanged();
+			if (null != bookmarkAdapter)
+				bookmarkAdapter.notifyDataSetChanged();
 		} catch (Exception e) {
 			e.printStackTrace();
 			Log.e(TAG, "clearAllData");
@@ -146,7 +152,7 @@ public class BookmarkDialog extends Dialog {
 			refreshUI();
 		}
 	}
-
+	
 	public void addData(BookmarkModel bookmarkModel) {
 		try {
 			Log.d(TAG, "addData: " + bookmarkModel);
@@ -162,7 +168,8 @@ public class BookmarkDialog extends Dialog {
 				Toast.makeText(this.context, this.context.getString(R.string.already_exist_same_bookmark), Toast.LENGTH_SHORT).show();
 			} else {
 				models.add(bookmarkModel);
-				bookmarkAdapter.notifyDataSetChanged();
+				if (null != bookmarkAdapter)
+					bookmarkAdapter.notifyDataSetChanged();
 				Toast.makeText(this.context, this.context.getString(R.string.add_bookmark_success), Toast.LENGTH_SHORT).show();
 			}
 		} catch (Exception e) {
@@ -174,7 +181,7 @@ public class BookmarkDialog extends Dialog {
 			refreshUI();
 		}
 	}
-
+	
 	public boolean removeData(BookmarkModel bookmarkModel) {
 		Log.d(TAG, "removeData: " + (bookmarkModel != null ? bookmarkModel : "null"));
 		boolean removeResult = false;
@@ -182,7 +189,8 @@ public class BookmarkDialog extends Dialog {
 			return false;
 		try {
 			removeResult = models.remove(bookmarkModel);
-			bookmarkAdapter.notifyDataSetChanged();
+			if (null != bookmarkAdapter)
+				bookmarkAdapter.notifyDataSetChanged();
 		} catch (Exception e) {
 			e.printStackTrace();
 			Log.e(TAG, "removeData: " + bookmarkModel);
@@ -193,21 +201,21 @@ public class BookmarkDialog extends Dialog {
 			return removeResult;
 		}
 	}
-
+	
 	public void writeToShared() {
-		SharedUtils.setParam(BookmarkDialog.this.context, SharedUtils.DEFAULT_NAME, SharedUtils.TAG_ALL_BOOKMARK,
-			models.stream().map(bookmarkModel -> bookmarkModel.getTitle() + "^" + bookmarkModel.getUrl()).reduce("", (s, s2) -> s + s2));
+		if (models != null)
+			SharedUtils.setParam(BookmarkDialog.this.context, SharedUtils.DEFAULT_NAME, SharedUtils.TAG_ALL_BOOKMARK, models);
 	}
-
+	
 	public class BookmarkAdapter extends RecyclerView.Adapter<BookmarkViewHolder> {
-
+		
 		@NonNull
 		@Override
 		public BookmarkViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
 			View rootView = LayoutInflater.from(parent.getContext()).inflate(R.layout.view_holder_bookmark, parent, false);
 			return new BookmarkViewHolder(rootView);
 		}
-
+		
 		@Override
 		public void onBindViewHolder(@NonNull BookmarkViewHolder holder, int position) {
 			BookmarkModel temp = models.get(position);
@@ -225,18 +233,18 @@ public class BookmarkDialog extends Dialog {
 				holder.llContainer.setOnLongClickListener(v -> BookmarkDialog.this.removeData(temp));
 			}
 		}
-
+		
 		@Override
 		public int getItemCount() {
 			return models.size();
 		}
 	}
-
+	
 	public static class BookmarkViewHolder extends RecyclerView.ViewHolder {
 		private LinearLayout llContainer;
 		private TextView tvTitle;
 		private TextView tvUrl;
-
+		
 		public BookmarkViewHolder(@NonNull View itemView) {
 			super(itemView);
 			llContainer = itemView.findViewById(R.id.vh_bookmark);
@@ -244,43 +252,5 @@ public class BookmarkDialog extends Dialog {
 			tvUrl = itemView.findViewById(R.id.vh_bookmark_tv_url);
 		}
 	}
-
-	public static class BookmarkModel implements Cloneable {
-		private String title;
-		private String url;
-
-		public BookmarkModel(String title, String url) {
-			this.title = title;
-			this.url = url;
-		}
-
-		public String getTitle() {
-			return title;
-		}
-
-		public void setTitle(String title) {
-			this.title = title;
-		}
-
-		public String getUrl() {
-			return url;
-		}
-
-		public void setUrl(String url) {
-			this.url = url;
-		}
-
-		@Override
-		protected BookmarkModel clone() {
-			return new BookmarkModel(title, url);
-		}
-
-		@Override
-		public String toString() {
-			return "BookmarkModel{" +
-				"title='" + title + '\'' +
-				", url='" + url + '\'' +
-				'}';
-		}
-	}
+	
 }
