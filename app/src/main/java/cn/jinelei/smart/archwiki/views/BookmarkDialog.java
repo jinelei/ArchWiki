@@ -12,22 +12,26 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
+import android.view.animation.LinearInterpolator;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
+import androidx.recyclerview.widget.DefaultItemAnimator;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.common.base.Strings;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
 import cn.jinelei.smart.archwiki.R;
+import cn.jinelei.smart.archwiki.common.anim.ScaleInAnimation;
+import cn.jinelei.smart.archwiki.common.anim.ScaleOutAnimation;
 import cn.jinelei.smart.archwiki.common.utils.SharedUtils;
 import cn.jinelei.smart.archwiki.models.BookmarkModel;
 
@@ -43,33 +47,27 @@ public class BookmarkDialog extends Dialog {
 	private RecyclerView.Adapter bookmarkAdapter;
 	private Handler handler = null;
 	private TextView tvNothing;
-	
+
 	public BookmarkDialog(@NonNull Context context) {
 		this(context, 0);
 	}
-	
+
 	public BookmarkDialog(@NonNull Context context, int themeResId) {
 		super(context, themeResId);
 		this.context = context;
 		initBookmarkDialog();
 	}
-	
-	protected BookmarkDialog(@NonNull Context context, boolean cancelable, @Nullable OnCancelListener cancelListener) {
-		super(context, cancelable, cancelListener);
-		this.context = context;
-		initBookmarkDialog();
-	}
-	
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		setContentView(R.layout.layout_bookmark_list);
+		setContentView(R.layout.dialog_bookmark_list);
 		initBookmarkDialog();
 		initView();
 		initEvent();
 		refreshUI();
 	}
-	
+
 	private void initBookmarkDialog() {
 		setCanceledOnTouchOutside(isCanceledOnTouchOutside);
 		setCancelable(isCancelable);
@@ -88,19 +86,20 @@ public class BookmarkDialog extends Dialog {
 		window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 //		window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
 	}
-	
+
 	private void initView() {
 		rvBookmark = findViewById(R.id.rv_bookmark);
 		tvNothing = findViewById(R.id.tv_nothing);
 		rvBookmark.setLayoutManager(new LinearLayoutManager(this.context));
 		bookmarkAdapter = new BookmarkAdapter();
 		rvBookmark.setAdapter(bookmarkAdapter);
+		rvBookmark.setItemAnimator(new DefaultItemAnimator());
 	}
-	
+
 	private void initEvent() {
 		findViewById(R.id.tv_confirm).setOnClickListener(v -> BookmarkDialog.this.dismiss());
 	}
-	
+
 	private void refreshUI() {
 		if (models.isEmpty()) {
 			if (tvNothing != null)
@@ -114,30 +113,30 @@ public class BookmarkDialog extends Dialog {
 				rvBookmark.setVisibility(View.VISIBLE);
 		}
 	}
-	
+
 	public void updateCanceledOnTouchOutside(boolean canceledOnTouchOutside) {
 		this.isCanceledOnTouchOutside = canceledOnTouchOutside;
 		this.setCanceledOnTouchOutside(canceledOnTouchOutside);
 	}
-	
+
 	public void updateSetCancelable(boolean setCancelable) {
 		this.isCancelable = setCancelable;
 		this.setCancelable(setCancelable);
 	}
-	
+
 	public boolean isCanceledOnTouchOutside() {
 		return isCanceledOnTouchOutside;
 	}
-	
+
 	public boolean isSetCancelable() {
 		return isCancelable;
 	}
-	
+
 	public void addHandler(Handler handler) {
 		if (handler != null)
 			this.handler = handler;
 	}
-	
+
 	public void clearAllData() {
 		try {
 			Log.d(TAG, "clearAllData");
@@ -152,7 +151,7 @@ public class BookmarkDialog extends Dialog {
 			refreshUI();
 		}
 	}
-	
+
 	public void addData(BookmarkModel bookmarkModel) {
 		try {
 			Log.d(TAG, "addData: " + bookmarkModel);
@@ -181,7 +180,7 @@ public class BookmarkDialog extends Dialog {
 			refreshUI();
 		}
 	}
-	
+
 	public boolean removeData(BookmarkModel bookmarkModel) {
 		Log.d(TAG, "removeData: " + (bookmarkModel != null ? bookmarkModel : "null"));
 		boolean removeResult = false;
@@ -201,21 +200,43 @@ public class BookmarkDialog extends Dialog {
 			return removeResult;
 		}
 	}
-	
+
 	public void writeToShared() {
 		if (models != null)
 			SharedUtils.setParam(BookmarkDialog.this.context, SharedUtils.DEFAULT_NAME, SharedUtils.TAG_ALL_BOOKMARK, models);
 	}
-	
+
 	public class BookmarkAdapter extends RecyclerView.Adapter<BookmarkViewHolder> {
-		
+		private ScaleInAnimation scaleInAnimation = new ScaleInAnimation();
+		private ScaleOutAnimation scaleOutAnimation = new ScaleOutAnimation();
+
+		@Override
+		public void onViewAttachedToWindow(@NonNull BookmarkViewHolder holder) {
+			super.onViewAttachedToWindow(holder);
+			Arrays.stream(scaleInAnimation.getAnimators(holder.itemView))
+				.forEach(animator -> {
+					animator.setDuration(200).start();
+					animator.setInterpolator(new LinearInterpolator());
+				});
+		}
+
+		@Override
+		public void onViewDetachedFromWindow(@NonNull BookmarkViewHolder holder) {
+			super.onViewDetachedFromWindow(holder);
+			Arrays.stream(scaleOutAnimation.getAnimators(holder.itemView))
+				.forEach(animator -> {
+					animator.setDuration(200).start();
+					animator.setInterpolator(new LinearInterpolator());
+				});
+		}
+
 		@NonNull
 		@Override
 		public BookmarkViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
 			View rootView = LayoutInflater.from(parent.getContext()).inflate(R.layout.view_holder_bookmark, parent, false);
 			return new BookmarkViewHolder(rootView);
 		}
-		
+
 		@Override
 		public void onBindViewHolder(@NonNull BookmarkViewHolder holder, int position) {
 			BookmarkModel temp = models.get(position);
@@ -233,18 +254,18 @@ public class BookmarkDialog extends Dialog {
 				holder.llContainer.setOnLongClickListener(v -> BookmarkDialog.this.removeData(temp));
 			}
 		}
-		
+
 		@Override
 		public int getItemCount() {
 			return models.size();
 		}
 	}
-	
+
 	public static class BookmarkViewHolder extends RecyclerView.ViewHolder {
 		private LinearLayout llContainer;
 		private TextView tvTitle;
 		private TextView tvUrl;
-		
+
 		public BookmarkViewHolder(@NonNull View itemView) {
 			super(itemView);
 			llContainer = itemView.findViewById(R.id.vh_bookmark);
@@ -252,5 +273,5 @@ public class BookmarkDialog extends Dialog {
 			tvUrl = itemView.findViewById(R.id.vh_bookmark_tv_url);
 		}
 	}
-	
+
 }

@@ -2,15 +2,14 @@
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_enabled="true" android:state_pressed="true">
         <shape>
-            <solid android:color="@color/buttonPressed" />
-
-            <stroke android:width="0.4dp" android:color="@color/buttonPressed" />
+            <solid android:color="#287474" />
+            <stroke android:width="0.4dp" android:color="#206363" />
         </shape>
     </item>
     <item android:state_enabled="true" android:state_pressed="false">
         <shape>
-            <solid android:color="@color/buttonUnpressed" />
-            <stroke android:width="0.4dp" android:color="@color/buttonUnpressed" />
+            <solid android:color="#aeeeee" />
+            <stroke android:width="0.4dp" android:color="#90E2E2" />
         </shape>
     </item>
 </selector>

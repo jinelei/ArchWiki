@@ -519,6 +519,11 @@ public class MainActivity extends AppCompatActivity {
 	private void showBookmark() {
 		Log.d(TAG, "click bookmark");
 		bookmarkDialog.show();
+//		handler.postDelayed(() -> {
+//			for (int i = 0; i < 30; i++) {
+//				bookmarkDialog.addData(new BookmarkModel("title_" + i, "url_" + i));
+//			}
+//		}, 300);
 	}
 
 	private void showSearchDialog() {
