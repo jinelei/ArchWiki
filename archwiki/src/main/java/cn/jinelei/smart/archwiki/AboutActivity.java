@@ -8,8 +8,6 @@ import android.widget.TextView;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
 
-import java.util.Optional;
-
 public class AboutActivity extends AppCompatActivity {
 
 	@Override
@@ -24,13 +22,13 @@ public class AboutActivity extends AppCompatActivity {
 		supportActionBar.setTitle(R.string.about);
 		supportActionBar.setDisplayHomeAsUpEnabled(true);
 		try {
-			((TextView) findViewById(R.id.tv_app_name)).setText(getPackageManager().getPackageInfo(getPackageName(), 0).packageName);
+			((TextView) findViewById(R.id.tv_app_name)).setText("" + getPackageManager().getPackageInfo(getPackageName(), 0).packageName);
 		} catch (PackageManager.NameNotFoundException e) {
 			e.printStackTrace();
 			((TextView) findViewById(R.id.tv_app_name)).setText(R.string.app_name);
 		}
 		try {
-			((TextView) findViewById(R.id.tv_app_version)).setText(getPackageManager().getPackageInfo(getPackageName(), 0).versionCode);
+			((TextView) findViewById(R.id.tv_app_version)).setText("" + getPackageManager().getPackageInfo(getPackageName(), 0).versionName);
 		} catch (PackageManager.NameNotFoundException e) {
 			e.printStackTrace();
 			((TextView) findViewById(R.id.tv_app_version)).setText("1.0.1");
