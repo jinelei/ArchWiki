@@ -474,6 +474,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 			case R.id.item_bookmark:
 				showBookmark();
 				break;
+			case R.id.item_exit:
+				MainActivity.this.finish();
+				break;
 			default:
 				Toast.makeText(MainActivity.this, "default", Toast.LENGTH_SHORT).show();
 				break;

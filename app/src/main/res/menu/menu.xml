@@ -9,4 +9,7 @@
     <item
         android:id="@+id/item_bookmark"
         android:title="@string/bookmark" />
+    <item
+        android:id="@+id/item_exit"
+        android:title="@string/exit" />
 </menu>
