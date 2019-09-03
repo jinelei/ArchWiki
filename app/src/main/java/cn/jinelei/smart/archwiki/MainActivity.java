@@ -71,14 +71,11 @@ public class MainActivity extends AppCompatActivity {
 	private static final String ARCH_URI;
 	private static final String JS_SRC_RULE;
 	private static final List<String> ALL_JAVASCRIPT_FUNCTION;
-	private static final List<LanguageModel> ALL_LANGUAGE;
-	private static final LanguageModel ENGLISH_LANGUAGE_MODEL;
 	private static final int GROUP_ID_LANGUAGE = 10;
 	private static final int ITEM_ID_LANGUAGE_PREFERENCE = 11;
 	private static final int ITEM_ID_REFRESH = 12;
 	private static final int ITEM_ID_ADD_BOOKMARK = 13;
 	private static final long AUTO_HIDE_TIMEOUT = 5000;
-	private static LanguageModel selectLanguageModel;
 	private BookmarkDialog bookmarkDialog = null;
 	private CountDownLatch needBackKeyDown = new CountDownLatch(2);
 	private ActionBar supportActionBar;
@@ -90,9 +87,7 @@ public class MainActivity extends AppCompatActivity {
 	private WebView webview;
 	private CoordinatorLayout clMain;
 	private LanguagePopupWindow languagePopupWindow;
-	private String baseUrl = null; // baseUrl is without language option url
-	private boolean isSearchAction = false;
-	
+
 	private final Runnable autoHideLoading = new Runnable() {
 		@Override
 		public void run() {
@@ -157,8 +152,7 @@ public class MainActivity extends AppCompatActivity {
 					break;
 				case CONFIRM_SELECT_LANGUAGE:
 					Log.d(TAG, "handleMessage: CONFIRM_SELECT_LANGUAGE");
-					selectLanguageModel = (LanguageModel) msg.obj;
-					webview.loadUrl(baseUrl + selectLanguageModel.getHrefSuffix());
+					webview.loadUrl(((LanguageModel) msg.obj).getHref());
 					handler.sendEmptyMessage(SHOW_LOADING);
 					break;
 				case CANCEL_SELECT_LANGUAGE:
@@ -185,7 +179,7 @@ public class MainActivity extends AppCompatActivity {
 			Log.d(TAG, "js调用了java函数");
 			Toast.makeText(MainActivity.this, "js调用了java函数", Toast.LENGTH_SHORT).show();
 		}
-		
+
 		@JavascriptInterface
 		public void startFunction(final String str) {
 			Log.d(TAG, "js调用了java函数传递参数: " + str);
@@ -210,7 +204,7 @@ public class MainActivity extends AppCompatActivity {
 				}))
 				.create().show();
 		}
-		
+
 		@Override
 		public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
 			try {
@@ -230,23 +224,14 @@ public class MainActivity extends AppCompatActivity {
 				return true;
 			}
 		}
-		
+
 		@Override
 		public void onPageStarted(WebView view, String url, Bitmap favicon) {
 			super.onPageStarted(view, url, favicon);
-			baseUrl = Optional.ofNullable(url)
-				.filter(s -> !Strings.isNullOrEmpty(url) && !Strings.isNullOrEmpty(selectLanguageModel.getHrefSuffix()) && url.length() >= selectLanguageModel.getHrefSuffix().length())
-				.map(u -> isSearchAction ? u : u.substring(0, u.length() - selectLanguageModel.getHrefSuffix().length()))
-				.orElse(ARCH_URI);
-			Log.d(TAG, "onPageStarted: " + url + " <<<<>>>> " + baseUrl);
-			if (isSearchAction) {
-				isSearchAction = false;
-				selectLanguageModel = ENGLISH_LANGUAGE_MODEL;
-				languagePopupWindow.setSelectLanguageModel(ENGLISH_LANGUAGE_MODEL);
-			}
+			Log.d(TAG, "onPageStarted: " + url);
 			handler.sendEmptyMessage(SHOW_LOADING);
 		}
-		
+
 		@Override
 		public void onPageFinished(WebView view, String url) {
 			Log.d(TAG, "onPageFinished: " + url);
@@ -263,8 +248,7 @@ public class MainActivity extends AppCompatActivity {
 									List<LanguageModel> collect = ModelUtils.convertStringToLanguageModelList(val);
 									Log.d(TAG, "step 2: find all language success");
 									Log.v(TAG, "findAllLanguageAll: " + collect);
-									ALL_LANGUAGE.addAll(collect);
-									languagePopupWindow.resetAllLanguage(ALL_LANGUAGE);
+									languagePopupWindow.resetAllLanguage(collect);
 								});
 							}
 							// step 3: should hide some elements
@@ -295,7 +279,7 @@ public class MainActivity extends AppCompatActivity {
 				.filter(s -> null != icon)
 				.ifPresent(actionBar -> actionBar.setIcon(new BitmapDrawable(null, icon)));
 		}
-		
+
 		@Override
 		public void onReceivedTitle(WebView view, String title) {
 			super.onReceivedTitle(view, title);
@@ -303,7 +287,7 @@ public class MainActivity extends AppCompatActivity {
 				.filter(s -> null != title && !title.equals(""))
 				.ifPresent(actionBar -> actionBar.setSubtitle(title));
 		}
-		
+
 		@Override
 		public boolean onJsAlert(WebView view, String url, String message, final JsResult result) {
 			new AlertDialog.Builder(MainActivity.this)
@@ -314,7 +298,7 @@ public class MainActivity extends AppCompatActivity {
 				.show();
 			return true;
 		}
-		
+
 		@Override
 		public boolean onJsConfirm(WebView view, String url, String message, final JsResult result) {
 			new AlertDialog.Builder(MainActivity.this)
@@ -326,7 +310,7 @@ public class MainActivity extends AppCompatActivity {
 				.show();
 			return true;
 		}
-		
+
 		@Override
 		public boolean onJsPrompt(WebView view, String url, String message, String defaultValue, final JsPromptResult result) {
 			final EditText et = new EditText(MainActivity.this);
@@ -362,16 +346,11 @@ public class MainActivity extends AppCompatActivity {
 				break;
 		}
 	};
-	
-	
+
 	static {
 //		ARCH_URI = "file:///android_asset/web/index.html";
 		ALL_JAVASCRIPT_FUNCTION = new ArrayList<>();
 		ARCH_URI = "https://wiki.archlinux.org/index.php/Main_page";
-		ALL_LANGUAGE = new ArrayList<>();
-		selectLanguageModel = new LanguageModel("en", "English", "");
-		ENGLISH_LANGUAGE_MODEL = new LanguageModel("en", "English", "");
-		ALL_LANGUAGE.add(selectLanguageModel.clone());
 		JS_SRC_RULE = "var obj = document.createElement(\"script\");"
 			+ "obj.type=\"text/javascript\";"
 			+ "obj.innerText=\"%s\";"
@@ -379,7 +358,7 @@ public class MainActivity extends AppCompatActivity {
 		ALL_JAVASCRIPT_FUNCTION.add(
 			"function findAllLanguageAll(){" +
 				"    var allLanguageNodeList = document.querySelectorAll('a.interlanguage-link-target');" +
-				"    var allLanguageString = Array.from(allLanguageNodeList).flatMap(ele => ele.lang + '^' + ele.innerText + '^' + (ele.href.length >=46 ? ele.href.substr(46) : ''));" +
+				"    var allLanguageString = Array.from(allLanguageNodeList).flatMap(ele => ele.lang + '^' + ele.innerText + '^' + ele.href);" +
 				"    return allLanguageString;" +
 				"};"
 		);
@@ -403,7 +382,7 @@ public class MainActivity extends AppCompatActivity {
 				"};"
 		);
 	}
-	
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -413,12 +392,12 @@ public class MainActivity extends AppCompatActivity {
 		initEvent();
 		init();
 	}
-	
+
 	private void init() {
 		Log.d(TAG, "init: ");
 		webview.loadUrl(ARCH_URI);
 	}
-	
+
 	private void initView() {
 		clMain = findViewById(R.id.cl_main);
 		webview = findViewById(R.id.webview);
@@ -432,7 +411,7 @@ public class MainActivity extends AppCompatActivity {
 		initLanguagePopupWindow();
 		initBookmark();
 	}
-	
+
 	private void initActionBar() {
 		supportActionBar = getSupportActionBar();
 		LinearLayout linearLayout = new LinearLayout(MainActivity.this);
@@ -450,10 +429,9 @@ public class MainActivity extends AppCompatActivity {
 		supportActionBar.setDisplayShowCustomEnabled(true);
 		supportActionBar.setCustomView(linearLayout, new ActionBar.LayoutParams(Gravity.RIGHT | Gravity.CENTER_VERTICAL));
 	}
-	
+
 	private void initLanguagePopupWindow() {
 		languagePopupWindow = new LanguagePopupWindow(MainActivity.this);
-		languagePopupWindow.setSelectLanguageModel(selectLanguageModel);
 		languagePopupWindow.setOutsideTouchable(true);
 		languagePopupWindow.setHandler(handler);
 		languagePopupWindow.setWidth(WindowManager.LayoutParams.MATCH_PARENT);
@@ -461,7 +439,7 @@ public class MainActivity extends AppCompatActivity {
 		MainActivity.this.getWindowManager().getDefaultDisplay().getSize(windowSize);
 		languagePopupWindow.setHeight(windowSize.y / 5 * 2);
 	}
-	
+
 	private void initBookmark() {
 		bookmarkDialog = new BookmarkDialog(MainActivity.this);
 		bookmarkDialog.addHandler(this.handler);
@@ -476,7 +454,7 @@ public class MainActivity extends AppCompatActivity {
 					.forEach(bookmarkModel -> MainActivity.this.bookmarkDialog.addData(bookmarkModel));
 			});
 	}
-	
+
 	private void initEvent() {
 		webview.setHorizontalScrollBarEnabled(false);
 		webview.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
@@ -484,7 +462,7 @@ public class MainActivity extends AppCompatActivity {
 		webview.setWebViewClient(webViewClient);
 		webview.setWebChromeClient(webChromeClient);
 		webview.addJavascriptInterface(javaScriptInterface, "javaScriptInterface");
-		
+
 		WebSettings setting = webview.getSettings();
 		setting.setUseWideViewPort(true);
 		setting.setJavaScriptEnabled(true);
@@ -494,7 +472,7 @@ public class MainActivity extends AppCompatActivity {
 		setting.setDisplayZoomControls(false);
 		setting.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.SINGLE_COLUMN);
 		setting.setLoadWithOverviewMode(true);
-		
+
 		setting.setCacheMode(WebSettings.LOAD_DEFAULT);
 		setting.setDatabaseEnabled(false);
 		setting.setAppCacheEnabled(false);
@@ -507,7 +485,7 @@ public class MainActivity extends AppCompatActivity {
 		fab2.setOnClickListener(onClickListener);
 		fab3.setOnClickListener(onClickListener);
 	}
-	
+
 	private void requestPermissions() {
 		// checkSelfPermission 判断是否已经申请了此权限
 		if (ContextCompat.checkSelfPermission(this, Manifest.permission.INTERNET)
@@ -521,32 +499,28 @@ public class MainActivity extends AppCompatActivity {
 			}
 		}
 	}
-	
+
 	private boolean shouldInjectJavaScript() {
 		Log.d(TAG, "shouldInjectJavaScript: " + true);
 		return true;
 	}
-	
+
 	private boolean shouldFindAllLanguage() {
-		Log.d(TAG, "shouldFindAllLanguage: " + (ALL_LANGUAGE.size() <= 1));
-		return ALL_LANGUAGE.size() <= 1;
+		Log.d(TAG, "shouldFindAllLanguage: true");
+//		return ALL_LANGUAGE.size() <= 1;
+		return true;
 	}
-	
+
 	private boolean shouldHideElements() {
 		Log.d(TAG, "shouldHideElements: " + true);
 		return true;
 	}
-	
+
 	private void showBookmark() {
 		Log.d(TAG, "click bookmark");
 		bookmarkDialog.show();
-//		new AlertDialog.Builder(MainActivity.this)
-//			.setView(R.layout.layout_bookmark_list)
-//			.setTitle(R.string.bookmark)
-//			.setPositiveButton(R.string.confirm, (dialog, which) -> dialog.dismiss())
-//			.create().show();
 	}
-	
+
 	private void showSearchDialog() {
 		Log.d(TAG, "showSearchDialog");
 		LinearLayout ll = new LinearLayout(MainActivity.this);
@@ -559,39 +533,36 @@ public class MainActivity extends AppCompatActivity {
 			.setView(ll)
 			.setPositiveButton(R.string.search, (dialog, which) -> {
 				if (!Strings.isNullOrEmpty(editText.getText().toString())) {
-					isSearchAction = true;
 					webview.evaluateJavascript("javascript:searchKey('" + editText.getText() + "')",
 						value -> Log.d(TAG, "searchKey: " + editText.getText()));
 				}
 			})
 			.create().show();
 	}
-	
+
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		super.onCreateOptionsMenu(menu);
 		Log.d(TAG, "onCreateOptionsMenu: ");
-		menu.addSubMenu(GROUP_ID_LANGUAGE, ITEM_ID_LANGUAGE_PREFERENCE, 0, R.string.language_preference);
+		menu.addSubMenu(GROUP_ID_LANGUAGE, ITEM_ID_LANGUAGE_PREFERENCE, 0, R.string.switch_language);
 		menu.add(GROUP_ID_LANGUAGE, ITEM_ID_REFRESH, 1, R.string.refresh);
 		menu.add(GROUP_ID_LANGUAGE, ITEM_ID_ADD_BOOKMARK, 2, R.string.add_bookmark);
 		return true;
 	}
-	
+
 	@Override
 	public boolean onPrepareOptionsMenu(Menu menu) {
 		super.onPrepareOptionsMenu(menu);
 		Log.d(TAG, "onPrepareOptionsMenu: ");
 		return true;
 	}
-	
+
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		Log.d(TAG, "onOptionsItemSelected: " + item.toString());
 		switch (item.getItemId()) {
 			case ITEM_ID_LANGUAGE_PREFERENCE:
-				if (ALL_LANGUAGE.size() > 0 && selectLanguageModel != null) {
-					languagePopupWindow.showAtLocation(clMain, Gravity.BOTTOM, 0, 0);
-				}
+				languagePopupWindow.showAtLocation(clMain, Gravity.BOTTOM, 0, 0);
 				break;
 			case ITEM_ID_REFRESH:
 				handler.sendEmptyMessage(SHOW_LOADING);
@@ -611,7 +582,7 @@ public class MainActivity extends AppCompatActivity {
 		}
 		return super.onOptionsItemSelected(item);
 	}
-	
+
 	@Override
 	public boolean onKeyUp(int keyCode, KeyEvent event) {
 		if (keyCode == KeyEvent.KEYCODE_BACK && event.getAction() == KeyEvent.ACTION_UP) {
@@ -638,7 +609,7 @@ public class MainActivity extends AppCompatActivity {
 		//继续执行父类其他点击事件
 		return super.onKeyUp(keyCode, event);
 	}
-	
+
 	@Override
 	public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
 		super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -652,5 +623,5 @@ public class MainActivity extends AppCompatActivity {
 			}
 		}
 	}
-	
+
 }

@@ -22,5 +22,6 @@
     <string name="remove_bookmark_success">删除书签成功</string>
     <string name="remove_bookmark_failure">删除书签失败</string>
     <string name="loading_bookmark">正在加载书签</string>
+    <string name="switch_language">切换语言</string>
 
 </resources>

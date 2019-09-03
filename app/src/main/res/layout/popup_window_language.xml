@@ -18,7 +18,7 @@
             android:id="@+id/tv_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/select_preference_language"
+            android:text="@string/switch_language"
             android:textColor="#ffffff"
             android:textSize="15sp" />
 
@@ -52,7 +52,7 @@
             android:layout_marginHorizontal="5dp"
             android:layout_marginVertical="2dp"
             android:layout_weight="1"
-            android:background="#cccccc"
+            android:background="@drawable/button_style_normal"
             android:gravity="center"
             android:padding="10dp"
             android:text="@string/cancel" />
@@ -64,7 +64,7 @@
             android:layout_marginHorizontal="5dp"
             android:layout_marginVertical="2dp"
             android:layout_weight="1"
-            android:background="#aaeeee"
+            android:background="@drawable/button_style_confirm"
             android:gravity="center"
             android:padding="10dp"
             android:text="@string/confirm" />

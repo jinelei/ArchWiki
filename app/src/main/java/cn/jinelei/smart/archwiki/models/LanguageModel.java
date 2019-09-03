@@ -8,7 +8,7 @@ import java.io.Serializable;
 public class LanguageModel implements Cloneable, Serializable, Parcelable {
 	private String summaryLang;
 	private String detailLang;
-	private String hrefSuffix;
+	private String href;
 	
 	public String getSummaryLang() {
 		return summaryLang;
@@ -18,19 +18,19 @@ public class LanguageModel implements Cloneable, Serializable, Parcelable {
 		return detailLang;
 	}
 	
-	public String getHrefSuffix() {
-		return hrefSuffix;
+	public String getHref() {
+		return href;
 	}
 	
-	public LanguageModel(String summaryLang, String detailLang, String hrefSuffix) {
+	public LanguageModel(String summaryLang, String detailLang, String href) {
 		this.summaryLang = summaryLang;
 		this.detailLang = detailLang;
-		this.hrefSuffix = hrefSuffix;
+		this.href = href;
 	}
 	
 	@Override
 	public LanguageModel clone() {
-		return new LanguageModel(this.summaryLang, this.detailLang, this.hrefSuffix);
+		return new LanguageModel(this.summaryLang, this.detailLang, this.href);
 	}
 	
 	@Override
@@ -38,7 +38,7 @@ public class LanguageModel implements Cloneable, Serializable, Parcelable {
 		return "LanguageModel{" +
 			"summaryLang='" + summaryLang + '\'' +
 			", detailLang='" + detailLang + '\'' +
-			", hrefSuffix='" + hrefSuffix + '\'' +
+			", href='" + href + '\'' +
 			'}';
 	}
 	
@@ -52,13 +52,13 @@ public class LanguageModel implements Cloneable, Serializable, Parcelable {
 	public void writeToParcel(Parcel dest, int flags) {
 		dest.writeString(this.summaryLang);
 		dest.writeString(this.detailLang);
-		dest.writeString(this.hrefSuffix);
+		dest.writeString(this.href);
 	}
 	
 	protected LanguageModel(Parcel in) {
 		this.summaryLang = in.readString();
 		this.detailLang = in.readString();
-		this.hrefSuffix = in.readString();
+		this.href = in.readString();
 	}
 	
 	public static final Parcelable.Creator<LanguageModel> CREATOR = new Parcelable.Creator<LanguageModel>() {
