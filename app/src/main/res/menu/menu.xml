@@ -1,20 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
-        android:id="@+id/item_language_preference"
-        android:title="@string/language_preference">
-        <menu>
-            <item
-                android:id="@+id/item_language_preference_none"
-                android:title="@string/keep_default" />
-            <item
-                android:id="@+id/item_language_preference_en"
-                android:title="@string/english_america" />
-            <item
-                android:id="@+id/item_language_preference_zh"
-                android:title="@string/chinese_simple" />
-        </menu>
-    </item>
+        android:id="@+id/item_switch_language"
+        android:title="@string/switch_language" />
+    <item
+        android:id="@+id/item_refresh"
+        android:title="@string/refresh" />
+    <item
+        android:id="@+id/item_bookmark"
+        android:title="@string/bookmark" />
     <item
         android:id="@+id/item_setting"
         android:title="@string/setting" />

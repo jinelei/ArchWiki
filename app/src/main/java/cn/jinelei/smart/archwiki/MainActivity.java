@@ -66,15 +66,11 @@ import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler
 import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.SHOW_LOADING;
 import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.TIMEOUT_HIDE_LOADING;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements View.OnClickListener, Handler.Callback {
 	private static final String TAG = "MainActivity";
 	private static final String ARCH_URI;
 	private static final String JS_SRC_RULE;
 	private static final List<String> ALL_JAVASCRIPT_FUNCTION;
-	private static final int GROUP_ID_LANGUAGE = 10;
-	private static final int ITEM_ID_LANGUAGE_PREFERENCE = 11;
-	private static final int ITEM_ID_REFRESH = 12;
-	private static final int ITEM_ID_ADD_BOOKMARK = 13;
 	private static final long AUTO_HIDE_TIMEOUT = 5000;
 	private BookmarkDialog bookmarkDialog = null;
 	private CountDownLatch needBackKeyDown = new CountDownLatch(2);
@@ -94,85 +90,7 @@ public class MainActivity extends AppCompatActivity {
 			handler.sendEmptyMessage(TIMEOUT_HIDE_LOADING);
 		}
 	};
-	private final Handler handler = new Handler(Looper.getMainLooper(), new Handler.Callback() {
-		@Override
-		public boolean handleMessage(Message msg) {
-			switch (msg.what) {
-				case SHOW_LOADING:
-					Log.d(TAG, "handleMessage: SHOW_LOADING");
-					webview.setVisibility(View.GONE);
-					progressBar.setVisibility(View.VISIBLE);
-					fabMenu.setEnabled(false);
-					if (fabMenu.isExpanded()) {
-						fabMenu.collapseImmediately();
-					}
-					handler.removeCallbacks(autoHideLoading);
-					handler.postDelayed(autoHideLoading, AUTO_HIDE_TIMEOUT);
-					break;
-				case HIDE_LOADING:
-					Log.d(TAG, "handleMessage: HIDE_LOADING");
-					handler.removeCallbacks(autoHideLoading);
-					webview.setVisibility(View.VISIBLE);
-					progressBar.setVisibility(View.GONE);
-					fabMenu.setEnabled(true);
-					if (fabMenu.isExpanded()) {
-						fabMenu.collapseImmediately();
-					}
-					break;
-				case SHOW_ERROR:
-					Log.d(TAG, "handleMessage: SHOW_ERROR");
-					handler.removeCallbacks(autoHideLoading);
-					webview.setVisibility(View.GONE);
-					progressBar.setVisibility(View.GONE);
-					fabMenu.setEnabled(true);
-					if (fabMenu.isExpanded()) {
-						fabMenu.collapseImmediately();
-					}
-					LinearLayout ll = new LinearLayout(MainActivity.this);
-					ll.setPadding(40, 20, 40, 20);
-					TextView textView = new TextView(MainActivity.this);
-					textView.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-					textView.setText(Optional.ofNullable(msg.obj).map(Object::toString).orElse(MainActivity.this.getString(R.string.page_load_error)));
-					ll.addView(textView);
-					new AlertDialog.Builder(MainActivity.this)
-						.setTitle(R.string.page_load_error)
-						.setView(ll)
-						.setPositiveButton(R.string.confirm, ((dialog, which) -> dialog.dismiss()))
-						.create().show();
-					break;
-				case TIMEOUT_HIDE_LOADING:
-					Log.d(TAG, "handleMessage: TIMEOUT_HIDE_LOADING");
-					handler.removeCallbacks(autoHideLoading);
-					webview.setVisibility(View.VISIBLE);
-					progressBar.setVisibility(View.GONE);
-					fabMenu.setEnabled(true);
-					if (fabMenu.isExpanded()) {
-						fabMenu.collapseImmediately();
-					}
-					break;
-				case CONFIRM_SELECT_LANGUAGE:
-					Log.d(TAG, "handleMessage: CONFIRM_SELECT_LANGUAGE");
-					webview.loadUrl(((LanguageModel) msg.obj).getHref());
-					handler.sendEmptyMessage(SHOW_LOADING);
-					break;
-				case CANCEL_SELECT_LANGUAGE:
-					Log.d(TAG, "handleMessage: CANCEL_SELECT_LANGUAGE");
-					break;
-				case GOTO_ANOTHER_URL:
-					Log.d(TAG, "handleMessage: GOTO_ANOTHER_URL");
-					Optional.ofNullable(msg.obj)
-						.filter(o -> o instanceof BookmarkModel && !Strings.isNullOrEmpty(((BookmarkModel) o).getUrl()))
-						.filter(o -> null != webview)
-						.map(o -> ((BookmarkModel) o).getUrl())
-						.ifPresent(url -> {
-							handler.sendEmptyMessage(SHOW_LOADING);
-							webview.loadUrl(url);
-						});
-					break;
-			}
-			return true;
-		}
-	});
+	private final Handler handler = new Handler(Looper.getMainLooper(), this);
 	private final IJavaScriptInterface javaScriptInterface = new IJavaScriptInterface() {
 		@JavascriptInterface
 		public void startFunction() {
@@ -325,27 +243,6 @@ public class MainActivity extends AppCompatActivity {
 			return true;
 		}
 	};
-	private final View.OnClickListener onClickListener = v -> {
-		switch (v.getId()) {
-			case R.id.fab_1:
-				webview.evaluateJavascript("javascript:findAllLanguage()", value -> {
-					Log.d(TAG, "received: " + value);
-					Toast.makeText(MainActivity.this, value, Toast.LENGTH_SHORT).show();
-				});
-				break;
-			case R.id.fab_2:
-				webview.evaluateJavascript("javascript:findLanguage('en')", value -> {
-					Log.d(TAG, "received: " + value);
-					Toast.makeText(MainActivity.this, value, Toast.LENGTH_SHORT).show();
-				});
-				break;
-			case R.id.fab_3:
-				Log.d(TAG, "initEvent: webview reload");
-				webview.reload();
-				Toast.makeText(MainActivity.this, "reload", Toast.LENGTH_SHORT).show();
-				break;
-		}
-	};
 
 	static {
 //		ARCH_URI = "file:///android_asset/web/index.html";
@@ -415,8 +312,8 @@ public class MainActivity extends AppCompatActivity {
 	private void initActionBar() {
 		supportActionBar = getSupportActionBar();
 		View view = LayoutInflater.from(MainActivity.this).inflate(R.layout.action_bar_custom, clMain, false);
-		view.findViewById(R.id.iv_bookmark).setOnClickListener(v -> showBookmark());
-		view.findViewById(R.id.iv_search).setOnClickListener(v -> showSearchDialog());
+		view.findViewById(R.id.iv_bookmark).setOnClickListener(this);
+		view.findViewById(R.id.iv_search).setOnClickListener(this);
 		supportActionBar.setDisplayShowCustomEnabled(true);
 		supportActionBar.setCustomView(view, new ActionBar.LayoutParams(Gravity.RIGHT | Gravity.CENTER_VERTICAL));
 	}
@@ -472,9 +369,9 @@ public class MainActivity extends AppCompatActivity {
 		setting.setSaveFormData(false);
 		setting.setDomStorageEnabled(false);
 		setting.setAllowFileAccess(false);
-		fab1.setOnClickListener(onClickListener);
-		fab2.setOnClickListener(onClickListener);
-		fab3.setOnClickListener(onClickListener);
+		fab1.setOnClickListener(this);
+		fab2.setOnClickListener(this);
+		fab3.setOnClickListener(this);
 	}
 
 	private void requestPermissions() {
@@ -540,9 +437,7 @@ public class MainActivity extends AppCompatActivity {
 	public boolean onCreateOptionsMenu(Menu menu) {
 		super.onCreateOptionsMenu(menu);
 		Log.d(TAG, "onCreateOptionsMenu: ");
-		menu.addSubMenu(GROUP_ID_LANGUAGE, ITEM_ID_LANGUAGE_PREFERENCE, 0, R.string.switch_language);
-		menu.add(GROUP_ID_LANGUAGE, ITEM_ID_REFRESH, 1, R.string.refresh);
-		menu.add(GROUP_ID_LANGUAGE, ITEM_ID_ADD_BOOKMARK, 2, R.string.add_bookmark);
+		getMenuInflater().inflate(R.menu.menu, menu);
 		return true;
 	}
 
@@ -557,20 +452,15 @@ public class MainActivity extends AppCompatActivity {
 	public boolean onOptionsItemSelected(MenuItem item) {
 		Log.d(TAG, "onOptionsItemSelected: " + item.toString());
 		switch (item.getItemId()) {
-			case ITEM_ID_LANGUAGE_PREFERENCE:
+			case R.id.item_switch_language:
 				languagePopupWindow.showAtLocation(clMain, Gravity.BOTTOM, 0, 0);
 				break;
-			case ITEM_ID_REFRESH:
+			case R.id.item_refresh:
 				handler.sendEmptyMessage(SHOW_LOADING);
 				webview.reload();
 				break;
-			case ITEM_ID_ADD_BOOKMARK:
-				try {
-					bookmarkDialog.addData(new BookmarkModel(webview.getTitle(), webview.getUrl()));
-				} catch (Exception e) {
-					e.printStackTrace();
-					Log.e(TAG, "onOptionsItemSelected: " + e.getMessage());
-				}
+			case R.id.item_bookmark:
+				showBookmark();
 				break;
 			default:
 				Toast.makeText(MainActivity.this, "default", Toast.LENGTH_SHORT).show();
@@ -620,4 +510,115 @@ public class MainActivity extends AppCompatActivity {
 		}
 	}
 
+	@Override
+	public void onClick(View v) {
+		switch (v.getId()) {
+			case R.id.fab_1:
+				webview.evaluateJavascript("javascript:findAllLanguage()", value -> {
+					Log.d(TAG, "received: " + value);
+					Toast.makeText(MainActivity.this, value, Toast.LENGTH_SHORT).show();
+				});
+				break;
+			case R.id.fab_2:
+				webview.evaluateJavascript("javascript:findLanguage('en')", value -> {
+					Log.d(TAG, "received: " + value);
+					Toast.makeText(MainActivity.this, value, Toast.LENGTH_SHORT).show();
+				});
+				break;
+			case R.id.fab_3:
+				Log.d(TAG, "initEvent: webview reload");
+				webview.reload();
+				Toast.makeText(MainActivity.this, "reload", Toast.LENGTH_SHORT).show();
+				break;
+			case R.id.iv_bookmark: // add bookmark
+				try {
+					bookmarkDialog.addData(new BookmarkModel(webview.getTitle(), webview.getUrl()));
+				} catch (Exception e) {
+					e.printStackTrace();
+					Log.e(TAG, "onOptionsItemSelected: " + e.getMessage());
+				}
+				break;
+			case R.id.iv_search: // show search dialog
+				showSearchDialog();
+				break;
+		}
+	}
+
+	@Override
+	public boolean handleMessage(Message msg) {
+		switch (msg.what) {
+			case SHOW_LOADING:
+				Log.d(TAG, "handleMessage: SHOW_LOADING");
+				webview.setVisibility(View.GONE);
+				progressBar.setVisibility(View.VISIBLE);
+				fabMenu.setEnabled(false);
+				if (fabMenu.isExpanded()) {
+					fabMenu.collapseImmediately();
+				}
+				handler.removeCallbacks(autoHideLoading);
+				handler.postDelayed(autoHideLoading, AUTO_HIDE_TIMEOUT);
+				break;
+			case HIDE_LOADING:
+				Log.d(TAG, "handleMessage: HIDE_LOADING");
+				handler.removeCallbacks(autoHideLoading);
+				webview.setVisibility(View.VISIBLE);
+				progressBar.setVisibility(View.GONE);
+				fabMenu.setEnabled(true);
+				if (fabMenu.isExpanded()) {
+					fabMenu.collapseImmediately();
+				}
+				break;
+			case SHOW_ERROR:
+				Log.d(TAG, "handleMessage: SHOW_ERROR");
+				handler.removeCallbacks(autoHideLoading);
+				webview.setVisibility(View.GONE);
+				progressBar.setVisibility(View.GONE);
+				fabMenu.setEnabled(true);
+				if (fabMenu.isExpanded()) {
+					fabMenu.collapseImmediately();
+				}
+				LinearLayout ll = new LinearLayout(MainActivity.this);
+				ll.setPadding(40, 20, 40, 20);
+				TextView textView = new TextView(MainActivity.this);
+				textView.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+				textView.setText(Optional.ofNullable(msg.obj).map(Object::toString).orElse(MainActivity.this.getString(R.string.page_load_error)));
+				ll.addView(textView);
+				new AlertDialog.Builder(MainActivity.this)
+					.setTitle(R.string.page_load_error)
+					.setView(ll)
+					.setPositiveButton(R.string.confirm, ((dialog, which) -> dialog.dismiss()))
+					.create().show();
+				break;
+			case TIMEOUT_HIDE_LOADING:
+				Log.d(TAG, "handleMessage: TIMEOUT_HIDE_LOADING");
+				handler.removeCallbacks(autoHideLoading);
+				webview.setVisibility(View.VISIBLE);
+				progressBar.setVisibility(View.GONE);
+				fabMenu.setEnabled(true);
+				if (fabMenu.isExpanded()) {
+					fabMenu.collapseImmediately();
+				}
+				break;
+			case CONFIRM_SELECT_LANGUAGE:
+				Log.d(TAG, "handleMessage: CONFIRM_SELECT_LANGUAGE");
+				webview.loadUrl(((LanguageModel) msg.obj).getHref());
+				handler.sendEmptyMessage(SHOW_LOADING);
+				break;
+			case CANCEL_SELECT_LANGUAGE:
+				Log.d(TAG, "handleMessage: CANCEL_SELECT_LANGUAGE");
+				break;
+			case GOTO_ANOTHER_URL:
+				Log.d(TAG, "handleMessage: GOTO_ANOTHER_URL");
+				Optional.ofNullable(msg.obj)
+					.filter(o -> o instanceof BookmarkModel && !Strings.isNullOrEmpty(((BookmarkModel) o).getUrl()))
+					.filter(o -> null != webview)
+					.map(o -> ((BookmarkModel) o).getUrl())
+					.ifPresent(url -> {
+						handler.sendEmptyMessage(SHOW_LOADING);
+						webview.loadUrl(url);
+					});
+				break;
+		}
+		return true;
+	}
 }
