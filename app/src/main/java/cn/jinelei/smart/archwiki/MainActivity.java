@@ -11,6 +11,7 @@ import android.os.Message;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.KeyEvent;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -26,7 +27,6 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.EditText;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -414,20 +414,11 @@ public class MainActivity extends AppCompatActivity {
 
 	private void initActionBar() {
 		supportActionBar = getSupportActionBar();
-		LinearLayout linearLayout = new LinearLayout(MainActivity.this);
-		linearLayout.setOrientation(LinearLayout.HORIZONTAL);
-		linearLayout.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
-		linearLayout.setGravity(Gravity.CENTER_VERTICAL);
-		ImageView ivBookmark = new ImageView(MainActivity.this);
-		ivBookmark.setImageResource(R.drawable.ic_bookmark);
-		ivBookmark.setOnClickListener(v -> showBookmark());
-		linearLayout.addView(ivBookmark, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-		ImageView ivSearch = new ImageView(MainActivity.this);
-		ivSearch.setImageResource(R.drawable.ic_search);
-		ivSearch.setOnClickListener(v -> showSearchDialog());
-		linearLayout.addView(ivSearch, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+		View view = LayoutInflater.from(MainActivity.this).inflate(R.layout.action_bar_custom, clMain, false);
+		view.findViewById(R.id.iv_bookmark).setOnClickListener(v -> showBookmark());
+		view.findViewById(R.id.iv_search).setOnClickListener(v -> showSearchDialog());
 		supportActionBar.setDisplayShowCustomEnabled(true);
-		supportActionBar.setCustomView(linearLayout, new ActionBar.LayoutParams(Gravity.RIGHT | Gravity.CENTER_VERTICAL));
+		supportActionBar.setCustomView(view, new ActionBar.LayoutParams(Gravity.RIGHT | Gravity.CENTER_VERTICAL));
 	}
 
 	private void initLanguagePopupWindow() {
