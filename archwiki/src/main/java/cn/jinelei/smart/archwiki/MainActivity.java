@@ -1,6 +1,7 @@
 package cn.jinelei.smart.archwiki;
 
 import android.Manifest;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Point;
 import android.graphics.drawable.BitmapDrawable;
@@ -73,7 +74,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 	private static final List<String> ALL_JAVASCRIPT_FUNCTION;
 	private static final long AUTO_HIDE_TIMEOUT = 5000;
 	private BookmarkDialog bookmarkDialog;
-	private CountDownLatch needBackKeyDown = new CountDownLatch(2);
 	private ActionBar supportActionBar;
 	private ProgressBar progressBar;
 	private WebView webview;
@@ -460,6 +460,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 			case R.id.item_bookmark:
 				showBookmark();
 				break;
+			case R.id.item_about:
+				startActivity(new Intent(MainActivity.this, AboutActivity.class));
+				break;
 			case R.id.item_exit:
 				MainActivity.this.finish();
 				break;
@@ -480,14 +483,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 				webview.goBack();
 			} else {
 				if (CommonUtils.isFastClick(MainActivity.this)) {
-					needBackKeyDown.countDown();
-					if (needBackKeyDown.getCount() == 1) {
-						Toast.makeText(MainActivity.this, R.string.more_click_exit, Toast.LENGTH_SHORT).show();
-					} else {
-						finish();
-					}
+					finish();
 				} else {
-					needBackKeyDown = new CountDownLatch(2);
+					Toast.makeText(MainActivity.this, R.string.more_click_exit, Toast.LENGTH_SHORT).show();
 				}
 			}
 			//不执行父类点击事件
