@@ -40,8 +40,6 @@ import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-import com.getbase.floatingactionbutton.FloatingActionButton;
-import com.getbase.floatingactionbutton.FloatingActionsMenu;
 import com.google.common.base.Strings;
 
 import java.util.ArrayList;
@@ -74,13 +72,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 	private static final String JS_SRC_RULE;
 	private static final List<String> ALL_JAVASCRIPT_FUNCTION;
 	private static final long AUTO_HIDE_TIMEOUT = 5000;
-	private BookmarkDialog bookmarkDialog = null;
+	private BookmarkDialog bookmarkDialog;
 	private CountDownLatch needBackKeyDown = new CountDownLatch(2);
 	private ActionBar supportActionBar;
-	private FloatingActionsMenu fabMenu;
-	private FloatingActionButton fab1;
-	private FloatingActionButton fab2;
-	private FloatingActionButton fab3;
 	private ProgressBar progressBar;
 	private WebView webview;
 	private ImageView ivBookmark;
@@ -308,11 +302,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 	private void initView() {
 		clMain = findViewById(R.id.cl_main);
 		webview = findViewById(R.id.webview);
-		fabMenu = findViewById(R.id.fab_menu);
-		fab1 = findViewById(R.id.fab_1);
-		fab2 = findViewById(R.id.fab_2);
-		fab3 = findViewById(R.id.fab_3);
-		fabMenu.setVisibility(View.GONE);
 		progressBar = findViewById(R.id.progressbar);
 		initActionBar();
 		initLanguagePopupWindow();
@@ -381,9 +370,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 		setting.setSaveFormData(false);
 		setting.setDomStorageEnabled(false);
 		setting.setAllowFileAccess(false);
-		fab1.setOnClickListener(this);
-		fab2.setOnClickListener(this);
-		fab3.setOnClickListener(this);
 	}
 
 	private void requestPermissions() {
@@ -528,23 +514,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 	@Override
 	public void onClick(View v) {
 		switch (v.getId()) {
-			case R.id.fab_1:
-				webview.evaluateJavascript("javascript:findAllLanguage()", value -> {
-					Log.d(TAG, "received: " + value);
-					Toast.makeText(MainActivity.this, value, Toast.LENGTH_SHORT).show();
-				});
-				break;
-			case R.id.fab_2:
-				webview.evaluateJavascript("javascript:findLanguage('en')", value -> {
-					Log.d(TAG, "received: " + value);
-					Toast.makeText(MainActivity.this, value, Toast.LENGTH_SHORT).show();
-				});
-				break;
-			case R.id.fab_3:
-				Log.d(TAG, "initEvent: webview reload");
-				webview.reload();
-				Toast.makeText(MainActivity.this, "reload", Toast.LENGTH_SHORT).show();
-				break;
 			case R.id.iv_bookmark: // add bookmark
 				try {
 					TextView textView = new TextView(MainActivity.this);
@@ -583,10 +552,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 				Log.d(TAG, "handleMessage: SHOW_LOADING");
 				webview.setVisibility(View.GONE);
 				progressBar.setVisibility(View.VISIBLE);
-				fabMenu.setEnabled(false);
-				if (fabMenu.isExpanded()) {
-					fabMenu.collapseImmediately();
-				}
 				handler.removeCallbacks(autoHideLoading);
 				handler.postDelayed(autoHideLoading, AUTO_HIDE_TIMEOUT);
 				break;
@@ -595,20 +560,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 				handler.removeCallbacks(autoHideLoading);
 				webview.setVisibility(View.VISIBLE);
 				progressBar.setVisibility(View.GONE);
-				fabMenu.setEnabled(true);
-				if (fabMenu.isExpanded()) {
-					fabMenu.collapseImmediately();
-				}
 				break;
 			case SHOW_ERROR:
 				Log.d(TAG, "handleMessage: SHOW_ERROR");
 				handler.removeCallbacks(autoHideLoading);
 				webview.setVisibility(View.GONE);
 				progressBar.setVisibility(View.GONE);
-				fabMenu.setEnabled(true);
-				if (fabMenu.isExpanded()) {
-					fabMenu.collapseImmediately();
-				}
 				LinearLayout ll = new LinearLayout(MainActivity.this);
 				ll.setPadding(40, 20, 40, 20);
 				TextView textView = new TextView(MainActivity.this);
@@ -626,10 +583,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 				handler.removeCallbacks(autoHideLoading);
 				webview.setVisibility(View.VISIBLE);
 				progressBar.setVisibility(View.GONE);
-				fabMenu.setEnabled(true);
-				if (fabMenu.isExpanded()) {
-					fabMenu.collapseImmediately();
-				}
 				break;
 			case CONFIRM_SELECT_LANGUAGE:
 				Log.d(TAG, "handleMessage: CONFIRM_SELECT_LANGUAGE");
