@@ -3,14 +3,12 @@
     <item android:state_enabled="true" android:state_pressed="true">
         <shape>
             <solid android:color="@color/buttonPressed" />
-
             <stroke android:width="0.4dp" android:color="@color/buttonPressed" />
         </shape>
     </item>
     <item android:state_enabled="true" android:state_pressed="false">
         <shape>
             <solid android:color="#00ffffff" />
-
             <stroke android:width="0.4dp" android:color="#00ffffff" />
         </shape>
     </item>

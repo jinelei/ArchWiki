@@ -146,7 +146,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 			super.onPageStarted(view, url, favicon);
 			Log.d(TAG, "onPageStarted: " + url);
 			if (!Strings.isNullOrEmpty(url) && ivBookmark != null) {
-				ivBookmark.setImageResource(bookmarkDialog.containsUrl(url) ? R.drawable.ic_add_bookmark_dark : R.drawable.ic_add_bookmark);
+				ivBookmark.setImageResource(bookmarkDialog.containsUrl(url) ? R.drawable.ic_bookmark_full_dark: R.drawable.ic_bookmark_empty);
 //				ivBookmark.setEnabled(!bookmarkDialog.containsUrl(url));
 			}
 			if (ivBookmark != null)
@@ -603,7 +603,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 				break;
 			case REFRESH_BOOKMAEK: // refresh bookmark
 				if (ivBookmark != null && webview != null) {
-					ivBookmark.setImageResource(bookmarkDialog.containsUrl(webview.getUrl()) ? R.drawable.ic_add_bookmark_dark : R.drawable.ic_add_bookmark);
+					ivBookmark.setImageResource(bookmarkDialog.containsUrl(webview.getUrl()) ? R.drawable.ic_bookmark_full_dark: R.drawable.ic_bookmark_empty);
 //					ivBookmark.setEnabled(!bookmarkDialog.containsUrl(webview.getUrl()));
 				}
 				break;
