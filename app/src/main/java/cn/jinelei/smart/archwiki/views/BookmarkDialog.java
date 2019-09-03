@@ -36,6 +36,7 @@ import cn.jinelei.smart.archwiki.common.utils.SharedUtils;
 import cn.jinelei.smart.archwiki.models.BookmarkModel;
 
 import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.GOTO_ANOTHER_URL;
+import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.REFRESH_BOOKMAEK;
 
 public class BookmarkDialog extends Dialog {
 	private static final String TAG = "BookmarkDialog";
@@ -112,6 +113,12 @@ public class BookmarkDialog extends Dialog {
 			if (rvBookmark != null)
 				rvBookmark.setVisibility(View.VISIBLE);
 		}
+		if (handler != null) {
+			Message message = handler.obtainMessage();
+			message.what = REFRESH_BOOKMAEK;
+			message.obj = models;
+			handler.sendMessage(message);
+		}
 	}
 
 	public void updateCanceledOnTouchOutside(boolean canceledOnTouchOutside) {
@@ -181,24 +188,34 @@ public class BookmarkDialog extends Dialog {
 		}
 	}
 
-	public boolean removeData(BookmarkModel bookmarkModel) {
-		Log.d(TAG, "removeData: " + (bookmarkModel != null ? bookmarkModel : "null"));
+	public boolean removeData(BookmarkModel param) {
+		Log.d(TAG, "removeData: " + (param != null ? param : "null"));
 		boolean removeResult = false;
-		if (null == bookmarkModel || Strings.isNullOrEmpty(bookmarkModel.getUrl()) || Strings.isNullOrEmpty(bookmarkModel.getTitle()))
-			return false;
 		try {
-			removeResult = models.remove(bookmarkModel);
+			removeResult = models.removeIf(model -> null != model && null != param
+				&& !Strings.isNullOrEmpty(model.getTitle())
+				&& !Strings.isNullOrEmpty(model.getUrl())
+				&& model.getUrl().equals(param.getUrl())
+				&& model.getTitle().equals(param.getTitle()));
 			if (null != bookmarkAdapter)
 				bookmarkAdapter.notifyDataSetChanged();
 		} catch (Exception e) {
 			e.printStackTrace();
-			Log.e(TAG, "removeData: " + bookmarkModel);
+			Log.e(TAG, "removeData: " + param);
 		} finally {
 			Toast.makeText(this.context, this.context.getString(removeResult ? R.string.remove_bookmark_success : R.string.remove_bookmark_failure), Toast.LENGTH_SHORT).show();
 			refreshUI();
 			writeToShared();
 			return removeResult;
 		}
+	}
+
+	public boolean containsUrl(String param) {
+		return models.stream().anyMatch(iter -> null != param && null != iter && iter.getUrl().equals(param));
+	}
+
+	public boolean containsData(BookmarkModel param) {
+		return models.stream().anyMatch(iter -> null != param && null != iter && iter.getTitle().equals(param.getTitle()) && iter.getUrl().equals(param.getTitle()));
 	}
 
 	public void writeToShared() {
@@ -243,14 +260,15 @@ public class BookmarkDialog extends Dialog {
 			if (null != temp && !Strings.isNullOrEmpty(temp.getTitle()) && !Strings.isNullOrEmpty(temp.getUrl())) {
 				holder.tvTitle.setText(temp.getTitle());
 				holder.tvUrl.setText(temp.getUrl());
-				holder.llContainer.setOnClickListener(v -> Optional.ofNullable(BookmarkDialog.this.handler).ifPresent(handler1 -> {
-					Message msg = Message.obtain(handler1);
-					msg.what = GOTO_ANOTHER_URL;
-					msg.obj = temp;
-					handler1.sendMessage(msg);
-					BookmarkDialog.this.dismiss();
-					Toast.makeText(BookmarkDialog.this.context, BookmarkDialog.this.context.getString(R.string.loading_bookmark), Toast.LENGTH_SHORT).show();
-				}));
+				holder.llContainer.setOnClickListener(v -> Optional.ofNullable(BookmarkDialog.this.handler)
+					.ifPresent(handler1 -> {
+						Message msg = Message.obtain(handler1);
+						msg.what = GOTO_ANOTHER_URL;
+						msg.obj = temp;
+						handler1.sendMessage(msg);
+						BookmarkDialog.this.dismiss();
+						Toast.makeText(BookmarkDialog.this.context, BookmarkDialog.this.context.getString(R.string.loading_bookmark), Toast.LENGTH_SHORT).show();
+					}));
 				holder.llContainer.setOnLongClickListener(v -> BookmarkDialog.this.removeData(temp));
 			}
 		}

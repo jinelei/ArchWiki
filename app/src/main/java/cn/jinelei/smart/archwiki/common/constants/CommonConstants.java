@@ -9,5 +9,6 @@ public class CommonConstants {
 		public static final int CONFIRM_SELECT_LANGUAGE = 10012;
 		public static final int CANCEL_SELECT_LANGUAGE = 10013;
 		public static final int GOTO_ANOTHER_URL = 10014;
+		public static final int REFRESH_BOOKMAEK = 10015;
 	}
 }

@@ -23,4 +23,6 @@
     <string name="remove_bookmark_failure">remove bookmark failure</string>
     <string name="loading_bookmark">loading bookmark</string>
     <string name="switch_language">switch language</string>
+    <string name="would_add_bookmark">would add bookmark</string>
+    <string name="would_remove_bookmark">would remove bookmark</string>
 </resources>

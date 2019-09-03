@@ -27,6 +27,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -62,6 +63,7 @@ import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler
 import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.CONFIRM_SELECT_LANGUAGE;
 import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.GOTO_ANOTHER_URL;
 import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.HIDE_LOADING;
+import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.REFRESH_BOOKMAEK;
 import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.SHOW_ERROR;
 import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.SHOW_LOADING;
 import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.TIMEOUT_HIDE_LOADING;
@@ -81,6 +83,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 	private FloatingActionButton fab3;
 	private ProgressBar progressBar;
 	private WebView webview;
+	private ImageView ivBookmark;
+	private ImageView ivSearch;
 	private CoordinatorLayout clMain;
 	private LanguagePopupWindow languagePopupWindow;
 
@@ -147,7 +151,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 		public void onPageStarted(WebView view, String url, Bitmap favicon) {
 			super.onPageStarted(view, url, favicon);
 			Log.d(TAG, "onPageStarted: " + url);
-			handler.sendEmptyMessage(SHOW_LOADING);
+			if (!Strings.isNullOrEmpty(url) && ivBookmark != null) {
+				ivBookmark.setImageResource(bookmarkDialog.containsUrl(url) ? R.drawable.ic_add_bookmark_dark : R.drawable.ic_add_bookmark);
+//				ivBookmark.setEnabled(!bookmarkDialog.containsUrl(url));
+			}
+			if (ivBookmark != null)
+				handler.sendEmptyMessage(SHOW_LOADING);
 		}
 
 		@Override
@@ -280,6 +289,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 		);
 	}
 
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -312,8 +322,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 	private void initActionBar() {
 		supportActionBar = getSupportActionBar();
 		View view = LayoutInflater.from(MainActivity.this).inflate(R.layout.action_bar_custom, clMain, false);
-		view.findViewById(R.id.iv_bookmark).setOnClickListener(this);
-		view.findViewById(R.id.iv_search).setOnClickListener(this);
+		ivBookmark = view.findViewById(R.id.iv_bookmark);
+		ivBookmark.setOnClickListener(this);
+		ivSearch = view.findViewById(R.id.iv_search);
+		ivSearch.setOnClickListener(this);
 		supportActionBar.setDisplayShowCustomEnabled(true);
 		supportActionBar.setCustomView(view, new ActionBar.LayoutParams(Gravity.RIGHT | Gravity.CENTER_VERTICAL));
 	}
@@ -532,7 +544,24 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 				break;
 			case R.id.iv_bookmark: // add bookmark
 				try {
-					bookmarkDialog.addData(new BookmarkModel(webview.getTitle(), webview.getUrl()));
+					TextView textView = new TextView(MainActivity.this);
+					textView.setText(webview.getTitle() + "\n" + webview.getUrl());
+					textView.setPadding(50, 20, 50, 20);
+					boolean addOrRemoveData = bookmarkDialog.containsUrl(webview.getUrl());
+					new AlertDialog.Builder(MainActivity.this)
+						.setTitle(addOrRemoveData ? R.string.would_remove_bookmark : R.string.would_add_bookmark)
+						.setView(textView)
+						.setPositiveButton(R.string.confirm, ((dialog, which) -> {
+							if (addOrRemoveData) {
+								MainActivity.this.bookmarkDialog.removeData(new BookmarkModel(webview.getTitle(), webview.getUrl()));
+							} else {
+								MainActivity.this.bookmarkDialog.addData(new BookmarkModel(webview.getTitle(), webview.getUrl()));
+							}
+							dialog.dismiss();
+						}))
+						.setNegativeButton(R.string.cancel, ((dialog, which) -> {
+							dialog.dismiss();
+						})).create().show();
 				} catch (Exception e) {
 					e.printStackTrace();
 					Log.e(TAG, "onOptionsItemSelected: " + e.getMessage());
@@ -617,6 +646,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 						handler.sendEmptyMessage(SHOW_LOADING);
 						webview.loadUrl(url);
 					});
+				break;
+			case REFRESH_BOOKMAEK: // refresh bookmark
+				if (ivBookmark != null && webview != null) {
+					ivBookmark.setImageResource(bookmarkDialog.containsUrl(webview.getUrl()) ? R.drawable.ic_add_bookmark_dark : R.drawable.ic_add_bookmark);
+//					ivBookmark.setEnabled(!bookmarkDialog.containsUrl(webview.getUrl()));
+				}
 				break;
 		}
 		return true;
