@@ -14,7 +14,6 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.view.animation.LinearInterpolator;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -265,8 +264,9 @@ public class BookmarkDialog extends Dialog {
 				holder.tvUrl.setText(temp.getUrl());
 				String icon = temp.getIcon();
 				if (!Strings.isNullOrEmpty(icon) && !"".equals(icon) && icon.startsWith("data:")) {
+					holder.ivIcon.setVisibility(View.VISIBLE);
 					holder.ivIcon.setImageBitmap(BitmapUtils.base64ToBitmap(icon));
-				}else{
+				} else {
 					holder.ivIcon.setVisibility(View.GONE);
 				}
 				holder.container.setOnClickListener(v -> Optional.ofNullable(BookmarkDialog.this.handler)
