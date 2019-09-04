@@ -1,10 +1,13 @@
 package cn.jinelei.smart.archwiki;
 
 import android.Manifest;
+import android.content.BroadcastReceiver;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.Point;
 import android.graphics.drawable.BitmapDrawable;
+import android.net.ConnectivityManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -54,6 +57,7 @@ import cn.jinelei.smart.archwiki.common.utils.SharedUtils;
 import cn.jinelei.smart.archwiki.intf.IJavaScriptInterface;
 import cn.jinelei.smart.archwiki.models.BookmarkModel;
 import cn.jinelei.smart.archwiki.models.LanguageModel;
+import cn.jinelei.smart.archwiki.receiver.NetworkStateReceiver;
 import cn.jinelei.smart.archwiki.views.BookmarkDialog;
 import cn.jinelei.smart.archwiki.views.LanguagePopupWindow;
 
@@ -283,6 +287,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 		);
 	}
 
+	private NetworkStateReceiver networkStateReceiver;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -294,6 +299,27 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 		init();
 	}
 
+	//在onResume()方法注册
+	@Override
+	protected void onResume() {
+		if (networkStateReceiver == null) {
+			networkStateReceiver = new NetworkStateReceiver();
+		}
+		IntentFilter filter = new IntentFilter();
+		filter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
+		registerReceiver(networkStateReceiver, filter);
+		System.out.println("注册");
+		super.onResume();
+	}
+
+	//onPause()方法注销
+	@Override
+	protected void onPause() {
+		unregisterReceiver(networkStateReceiver);
+		System.out.println("注销");
+		super.onPause();
+	}
+
 	private void init() {
 		Log.d(TAG, "init: ");
 		webview.loadUrl(ARCH_URI);
@@ -303,9 +329,38 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 		clMain = findViewById(R.id.cl_main);
 		webview = findViewById(R.id.webview);
 		progressBar = findViewById(R.id.progressbar);
+		initWebView();
 		initActionBar();
 		initLanguagePopupWindow();
 		initBookmark();
+	}
+
+	private void initWebView(){
+		webview.setHorizontalScrollBarEnabled(false);
+		webview.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
+		WebView.setWebContentsDebuggingEnabled(true);
+		webview.setWebViewClient(webViewClient);
+		webview.setWebChromeClient(webChromeClient);
+		webview.addJavascriptInterface(javaScriptInterface, "javaScriptInterface");
+
+		WebSettings setting = webview.getSettings();
+		setting.setUseWideViewPort(true);
+		setting.setJavaScriptEnabled(true);
+		setting.setUseWideViewPort(true);
+		setting.setSupportZoom(true);
+		setting.setBuiltInZoomControls(true);
+		setting.setDisplayZoomControls(false);
+		setting.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.SINGLE_COLUMN);
+		setting.setLoadWithOverviewMode(true);
+
+		setting.setCacheMode(WebSettings.LOAD_DEFAULT);
+		setting.setDatabaseEnabled(false);
+		setting.setAppCacheEnabled(false);
+		setting.setDomStorageEnabled(false);
+		setting.setGeolocationEnabled(true);
+		setting.setSaveFormData(false);
+		setting.setDomStorageEnabled(false);
+		setting.setAllowFileAccess(false);
 	}
 
 	private void initActionBar() {
@@ -343,31 +398,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 	}
 
 	private void initEvent() {
-		webview.setHorizontalScrollBarEnabled(false);
-		webview.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
-		WebView.setWebContentsDebuggingEnabled(true);
-		webview.setWebViewClient(webViewClient);
-		webview.setWebChromeClient(webChromeClient);
-		webview.addJavascriptInterface(javaScriptInterface, "javaScriptInterface");
-
-		WebSettings setting = webview.getSettings();
-		setting.setUseWideViewPort(true);
-		setting.setJavaScriptEnabled(true);
-		setting.setUseWideViewPort(true);
-		setting.setSupportZoom(true);
-		setting.setBuiltInZoomControls(true);
-		setting.setDisplayZoomControls(false);
-		setting.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.SINGLE_COLUMN);
-		setting.setLoadWithOverviewMode(true);
-
-		setting.setCacheMode(WebSettings.LOAD_DEFAULT);
-		setting.setDatabaseEnabled(false);
-		setting.setAppCacheEnabled(false);
-		setting.setDomStorageEnabled(false);
-		setting.setGeolocationEnabled(true);
-		setting.setSaveFormData(false);
-		setting.setDomStorageEnabled(false);
-		setting.setAllowFileAccess(false);
 	}
 
 	private void requestPermissions() {
