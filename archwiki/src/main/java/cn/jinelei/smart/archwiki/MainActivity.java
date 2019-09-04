@@ -46,8 +46,8 @@ import com.google.common.base.Strings;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CountDownLatch;
 
+import cn.jinelei.smart.archwiki.common.utils.BitmapUtils;
 import cn.jinelei.smart.archwiki.common.utils.CommonUtils;
 import cn.jinelei.smart.archwiki.common.utils.ModelUtils;
 import cn.jinelei.smart.archwiki.common.utils.SharedUtils;
@@ -146,7 +146,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 			super.onPageStarted(view, url, favicon);
 			Log.d(TAG, "onPageStarted: " + url);
 			if (!Strings.isNullOrEmpty(url) && ivBookmark != null) {
-				ivBookmark.setImageResource(bookmarkDialog.containsUrl(url) ? R.drawable.ic_bookmark_full_dark: R.drawable.ic_bookmark_empty);
+				ivBookmark.setImageResource(bookmarkDialog.containsUrl(url) ? R.drawable.ic_bookmark_full_dark : R.drawable.ic_bookmark_empty);
 //				ivBookmark.setEnabled(!bookmarkDialog.containsUrl(url));
 			}
 			if (ivBookmark != null)
@@ -335,13 +335,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 		Optional.ofNullable(SharedUtils.getParam(MainActivity.this, SharedUtils.DEFAULT_NAME, SharedUtils.TAG_ALL_BOOKMARK, new ArrayList<>()))
 			.filter(o -> o instanceof List)
 			.map(o -> (ArrayList<Object>) o)
-			.ifPresent(list -> {
-				list.stream()
-					.filter(o -> o instanceof BookmarkModel)
-					.map(o -> (BookmarkModel) o)
-					.filter(model -> !Strings.isNullOrEmpty(model.getTitle()) && !Strings.isNullOrEmpty(model.getUrl()))
-					.forEach(bookmarkModel -> MainActivity.this.bookmarkDialog.addData(bookmarkModel));
-			});
+			.ifPresent(list -> list.stream()
+				.filter(o -> o instanceof BookmarkModel)
+				.map(o -> (BookmarkModel) o)
+				.filter(BookmarkModel::checkBaseInfomation)
+				.forEach(bookmarkModel -> MainActivity.this.bookmarkDialog.addData(bookmarkModel)));
 	}
 
 	private void initEvent() {
@@ -522,10 +520,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 						.setTitle(addOrRemoveData ? R.string.would_remove_bookmark : R.string.would_add_bookmark)
 						.setView(textView)
 						.setPositiveButton(R.string.confirm, ((dialog, which) -> {
+							BookmarkModel tempModel = new BookmarkModel(webview.getTitle(), webview.getUrl(), BitmapUtils.bitmapToBase64(webview.getFavicon()));
 							if (addOrRemoveData) {
-								MainActivity.this.bookmarkDialog.removeData(new BookmarkModel(webview.getTitle(), webview.getUrl()));
+								MainActivity.this.bookmarkDialog.removeData(tempModel);
 							} else {
-								MainActivity.this.bookmarkDialog.addData(new BookmarkModel(webview.getTitle(), webview.getUrl()));
+								MainActivity.this.bookmarkDialog.addData(tempModel);
 							}
 							dialog.dismiss();
 						}))
@@ -603,7 +602,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 				break;
 			case REFRESH_BOOKMAEK: // refresh bookmark
 				if (ivBookmark != null && webview != null) {
-					ivBookmark.setImageResource(bookmarkDialog.containsUrl(webview.getUrl()) ? R.drawable.ic_bookmark_full_dark: R.drawable.ic_bookmark_empty);
+					ivBookmark.setImageResource(bookmarkDialog.containsUrl(webview.getUrl()) ? R.drawable.ic_bookmark_full_dark : R.drawable.ic_bookmark_empty);
 //					ivBookmark.setEnabled(!bookmarkDialog.containsUrl(webview.getUrl()));
 				}
 				break;

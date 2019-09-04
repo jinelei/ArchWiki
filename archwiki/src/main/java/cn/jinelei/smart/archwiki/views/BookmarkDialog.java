@@ -13,11 +13,13 @@ import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.animation.LinearInterpolator;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.recyclerview.widget.DefaultItemAnimator;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -32,6 +34,7 @@ import java.util.Optional;
 import cn.jinelei.smart.archwiki.R;
 import cn.jinelei.smart.archwiki.common.anim.ScaleInAnimation;
 import cn.jinelei.smart.archwiki.common.anim.ScaleOutAnimation;
+import cn.jinelei.smart.archwiki.common.utils.BitmapUtils;
 import cn.jinelei.smart.archwiki.common.utils.SharedUtils;
 import cn.jinelei.smart.archwiki.models.BookmarkModel;
 
@@ -260,7 +263,13 @@ public class BookmarkDialog extends Dialog {
 			if (null != temp && !Strings.isNullOrEmpty(temp.getTitle()) && !Strings.isNullOrEmpty(temp.getUrl())) {
 				holder.tvTitle.setText(temp.getTitle());
 				holder.tvUrl.setText(temp.getUrl());
-				holder.llContainer.setOnClickListener(v -> Optional.ofNullable(BookmarkDialog.this.handler)
+				String icon = temp.getIcon();
+				if (!Strings.isNullOrEmpty(icon) && !"".equals(icon) && icon.startsWith("data:")) {
+					holder.ivIcon.setImageBitmap(BitmapUtils.base64ToBitmap(icon));
+				}else{
+					holder.ivIcon.setVisibility(View.GONE);
+				}
+				holder.container.setOnClickListener(v -> Optional.ofNullable(BookmarkDialog.this.handler)
 					.ifPresent(handler1 -> {
 						Message msg = Message.obtain(handler1);
 						msg.what = GOTO_ANOTHER_URL;
@@ -269,7 +278,7 @@ public class BookmarkDialog extends Dialog {
 						BookmarkDialog.this.dismiss();
 						Toast.makeText(BookmarkDialog.this.context, BookmarkDialog.this.context.getString(R.string.loading_bookmark), Toast.LENGTH_SHORT).show();
 					}));
-				holder.llContainer.setOnLongClickListener(v -> BookmarkDialog.this.removeData(temp));
+				holder.container.setOnLongClickListener(v -> BookmarkDialog.this.removeData(temp));
 			}
 		}
 
@@ -280,15 +289,17 @@ public class BookmarkDialog extends Dialog {
 	}
 
 	public static class BookmarkViewHolder extends RecyclerView.ViewHolder {
-		private LinearLayout llContainer;
+		private ConstraintLayout container;
 		private TextView tvTitle;
 		private TextView tvUrl;
+		private ImageView ivIcon;
 
 		public BookmarkViewHolder(@NonNull View itemView) {
 			super(itemView);
-			llContainer = itemView.findViewById(R.id.vh_bookmark);
+			container = itemView.findViewById(R.id.vh_bookmark);
 			tvTitle = itemView.findViewById(R.id.vh_bookmark_tv_title);
 			tvUrl = itemView.findViewById(R.id.vh_bookmark_tv_url);
+			ivIcon = itemView.findViewById(R.id.vh_bookmark_iv_icon);
 		}
 	}
 
