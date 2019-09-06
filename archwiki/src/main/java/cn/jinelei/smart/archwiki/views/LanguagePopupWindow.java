@@ -56,7 +56,7 @@ public class LanguagePopupWindow extends PopupWindow implements View.OnClickList
 		rootView = inflater.inflate(R.layout.popup_window_language, null);
 		rootView.findViewById(R.id.tv_confirm).setOnClickListener(this);
 		rootView.findViewById(R.id.tv_cancel).setOnClickListener(this);
-		RecyclerView rvLanguage = rootView.findViewById(R.id.rv_language);
+		RecyclerView rvLanguage = rootView.findViewById(R.id.rv_related_articles);
 		setContentView(rootView);
 		rvLanguage.setLayoutManager(new LinearLayoutManager(context));
 		rvLanguage.setAdapter(adapter);
@@ -83,7 +83,7 @@ public class LanguagePopupWindow extends PopupWindow implements View.OnClickList
 					Message obtain = Message.obtain();
 					obtain.what = CommonConstants.Handler.CONFIRM_SELECT_LANGUAGE;
 					obtain.obj = tempSelectLanguageModel;
-					Log.d(TAG, "select language: " + tempSelectLanguageModel);
+					Log.d(TAG, "select textView: " + tempSelectLanguageModel);
 					handler.sendMessage(obtain);
 				}
 				tempSelectLanguageModel = null;
@@ -134,7 +134,7 @@ public class LanguagePopupWindow extends PopupWindow implements View.OnClickList
 
 		private LanguageViewHolder(View itemView) {
 			super(itemView);
-			language = itemView.findViewById(R.id.vh_tv_language);
+			language = itemView.findViewById(R.id.vh_tv);
 		}
 	}
 

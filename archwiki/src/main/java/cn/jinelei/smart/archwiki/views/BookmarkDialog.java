@@ -38,7 +38,7 @@ import cn.jinelei.smart.archwiki.common.utils.SharedUtils;
 import cn.jinelei.smart.archwiki.models.BookmarkModel;
 
 import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.GOTO_ANOTHER_URL;
-import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.REFRESH_BOOKMAEK;
+import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.REFRESH_BOOKMARK;
 
 public class BookmarkDialog extends Dialog {
 	private static final String TAG = "BookmarkDialog";
@@ -117,7 +117,7 @@ public class BookmarkDialog extends Dialog {
 		}
 		if (handler != null) {
 			Message message = handler.obtainMessage();
-			message.what = REFRESH_BOOKMAEK;
+			message.what = REFRESH_BOOKMARK;
 			message.obj = models;
 			handler.sendMessage(message);
 		}

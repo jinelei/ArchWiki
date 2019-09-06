@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="400dp"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
     android:background="#ffffff"
+    android:maxWidth="200dp"
+    android:maxHeight="400dp"
+    android:minWidth="100dp"
+    android:minHeight="200dp"
     android:orientation="vertical">
 
     <LinearLayout
@@ -30,20 +34,20 @@
         android:layout_weight="1">
 
         <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rv_language"
+            android:id="@+id/rv_related_articles"
             android:layout_width="match_parent"
             android:layout_height="wrap_content" />
 
     </ScrollView>
 
     <LinearLayout
-        android:background="#eeeeee"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:background="#eeeeee"
         android:gravity="center"
+        android:orientation="horizontal"
         android:paddingHorizontal="10dp"
-        android:paddingVertical="15dp"
-        android:orientation="horizontal">
+        android:paddingVertical="15dp">
 
         <TextView
             android:id="@+id/tv_cancel"

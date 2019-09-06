@@ -1,6 +1,7 @@
 package cn.jinelei.smart.archwiki;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
@@ -31,10 +32,12 @@ import android.webkit.WebViewClient;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.PopupWindow;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -42,14 +45,13 @@ import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.common.base.Strings;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
-import cn.jinelei.smart.archwiki.common.constants.CommonConstants;
 import cn.jinelei.smart.archwiki.common.utils.BitmapUtils;
 import cn.jinelei.smart.archwiki.common.utils.CommonUtils;
 import cn.jinelei.smart.archwiki.common.utils.FileUtils;
@@ -62,13 +64,15 @@ import cn.jinelei.smart.archwiki.receiver.NetworkStateObserver;
 import cn.jinelei.smart.archwiki.receiver.NetworkStateReceiver;
 import cn.jinelei.smart.archwiki.views.BookmarkDialog;
 import cn.jinelei.smart.archwiki.views.LanguagePopupWindow;
+import cn.jinelei.smart.archwiki.views.RelatedArticlesPopupWindow;
 
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.CANCEL_SELECT_LANGUAGE;
 import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.CONFIRM_SELECT_LANGUAGE;
 import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.GOTO_ANOTHER_URL;
 import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.HIDE_LOADING;
-import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.REFRESH_BOOKMAEK;
+import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.REFRESH_BOOKMARK;
+import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.REFRESH_FAB_LINK;
 import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.SHOW_ERROR;
 import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.SHOW_LOADING;
 import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.TIMEOUT_HIDE_LOADING;
@@ -78,16 +82,26 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 	//		ARCH_URI = "file:///android_asset/web/index.html";
 	private static final String ARCH_URI = "https://wiki.archlinux.org/index.php/Main_page";
 	private static final String WEB_JS_ARCHWIKI_JS = "web/js/archwiki.js";
-	private static final String JS_SRC_RULE = CommonConstants.Javascript.JS_SRC_RULE;
+	private static final String JS_SRC_RULE =
+		"var obj = document.createElement(\"script\");"
+			+ "obj.type=\"text/javascript\";"
+			+ "obj.innerText=\"%s\";"
+			+ "document.body.appendChild(obj);";
+	public static final String INVOKE_findAllLanguage = "javascript:findAllLanguage()";
+	public static final String INVOKE_autoHideElements = "javascript:autoHideElement()";
+	public static final String INVOKE_searchKey = "javascript:searchKey('%s')";
+	public static final String INVOKE_findAllRelatedArticles = "javascript:findAllRelatedArticles()";
 	private static final long AUTO_HIDE_TIMEOUT = 5000;
 	private BookmarkDialog bookmarkDialog;
 	private ActionBar supportActionBar;
 	private ProgressBar progressBar;
 	private WebView webview;
 	private ImageView ivBookmark;
-	private ImageView ivSearch;
+	private FloatingActionButton fabMain;
 	private CoordinatorLayout clMain;
 	private LanguagePopupWindow languagePopupWindow;
+	private RelatedArticlesPopupWindow relatedArticlesPopupWindow;
+	private List<BookmarkModel> allRelatedArticles;
 
 	private final Runnable autoHideLoading = new Runnable() {
 		@Override
@@ -130,9 +144,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 				obtain.what = SHOW_ERROR;
 				obtain.obj = throwable.getMessage();
 				handler.sendMessage(obtain);
-			} finally {
-				return true;
 			}
+			return true;
 		}
 
 		@Override
@@ -159,7 +172,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 							Log.d(TAG, "step 1: inject javascript success");
 							// step 2: query all available language
 							if (shouldFindAllLanguage()) {
-								webview.evaluateJavascript(CommonConstants.Javascript.INVOKE_findAllLanguage, val -> {
+								webview.evaluateJavascript(INVOKE_findAllLanguage, val -> {
 									List<LanguageModel> collect = ModelUtils.convertStringToLanguageModelList(val);
 									Log.d(TAG, "step 2: find all language success");
 									Log.v(TAG, "findAllLanguageAll: " + collect);
@@ -168,10 +181,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 							}
 							// step 3: should hide some elements
 							if (shouldHideElements()) {
-								webview.evaluateJavascript(CommonConstants.Javascript.INVOKE_autoHideElements, value1 -> Log.d(TAG, "step 3: auto hide elements success"));
+								webview.evaluateJavascript(INVOKE_autoHideElements, value1 -> Log.d(TAG, "step 3: auto hide elements success"));
 							}
 							if (shouldShowRelatedArticles()) {
-								webview.evaluateJavascript(CommonConstants.Javascript.INVOKE_findAllRelatedArticles, value2 -> Log.d(TAG, "step 4: find all related articles " + value2));
+								webview.evaluateJavascript(INVOKE_findAllRelatedArticles, value2 -> {
+									Log.d(TAG, "step 4: find all related articles " + value2);
+									allRelatedArticles = ModelUtils.convertStringToBookmarkModelList(value2);
+									relatedArticlesPopupWindow.resetAllRelatedArticles(allRelatedArticles);
+									handler.sendEmptyMessage(REFRESH_FAB_LINK);
+								});
 							}
 							handler.sendEmptyMessage(HIDE_LOADING);
 						});
@@ -284,16 +302,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 		webview.loadUrl(ARCH_URI);
 	}
 
+	@SuppressLint("RestrictedApi")
 	private void initView() {
 		clMain = findViewById(R.id.cl_main);
 		webview = findViewById(R.id.webview);
 		progressBar = findViewById(R.id.progressbar);
+		fabMain = findViewById(R.id.fab_main);
+		fabMain.setVisibility(View.GONE);
+		fabMain.setOnClickListener(this);
 		initWebView();
 		initActionBar();
-		initLanguagePopupWindow();
+		initPopupWindow();
 		initBookmark();
 	}
 
+	@SuppressLint("SetJavaScriptEnabled")
 	private void initWebView() {
 		webview.setHorizontalScrollBarEnabled(false);
 		webview.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
@@ -321,18 +344,19 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 		setting.setAllowFileAccess(false);
 	}
 
+	@SuppressLint("RtlHardcoded")
 	private void initActionBar() {
 		supportActionBar = getSupportActionBar();
 		View view = LayoutInflater.from(MainActivity.this).inflate(R.layout.action_bar_custom, clMain, false);
 		ivBookmark = view.findViewById(R.id.iv_bookmark);
 		ivBookmark.setOnClickListener(this);
-		ivSearch = view.findViewById(R.id.iv_search);
+		ImageView ivSearch = view.findViewById(R.id.iv_search);
 		ivSearch.setOnClickListener(this);
 		supportActionBar.setDisplayShowCustomEnabled(true);
 		supportActionBar.setCustomView(view, new ActionBar.LayoutParams(Gravity.RIGHT | Gravity.CENTER_VERTICAL));
 	}
 
-	private void initLanguagePopupWindow() {
+	private void initPopupWindow() {
 		languagePopupWindow = new LanguagePopupWindow(MainActivity.this);
 		languagePopupWindow.setOutsideTouchable(true);
 		languagePopupWindow.setHandler(handler);
@@ -340,8 +364,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 		Point windowSize = new Point();
 		MainActivity.this.getWindowManager().getDefaultDisplay().getSize(windowSize);
 		languagePopupWindow.setHeight(windowSize.y / 5 * 2);
+		relatedArticlesPopupWindow = new RelatedArticlesPopupWindow(MainActivity.this);
+		relatedArticlesPopupWindow.setOnDismissListener(() -> fabMain.postDelayed(()->fabMain.setEnabled(true), 500));
+		relatedArticlesPopupWindow.setOutsideTouchable(true);
+		relatedArticlesPopupWindow.setHandler(handler);
+		relatedArticlesPopupWindow.setWidth(WindowManager.LayoutParams.WRAP_CONTENT);
+		relatedArticlesPopupWindow.setHeight(windowSize.y / 5 * 2);
 	}
 
+	@SuppressWarnings("unchecked")
 	private void initBookmark() {
 		bookmarkDialog = new BookmarkDialog(MainActivity.this);
 		bookmarkDialog.addHandler(this.handler);
@@ -410,7 +441,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 			.setView(ll)
 			.setPositiveButton(R.string.search, (dialog, which) -> {
 				if (!Strings.isNullOrEmpty(editText.getText().toString())) {
-					webview.evaluateJavascript(String.format(CommonConstants.Javascript.INVOKE_searchKey, editText.getText().toString()),
+					webview.evaluateJavascript(String.format(INVOKE_searchKey, editText.getText().toString()),
 						value -> Log.d(TAG, "searchKey: " + editText.getText()));
 				}
 			})
@@ -482,7 +513,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 	}
 
 	@Override
-	public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+	public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
 		super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 		if (requestCode == 1) {
 			for (int i = 0; i < permissions.length; i++) {
@@ -501,7 +532,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 			case R.id.iv_bookmark: // add bookmark
 				try {
 					TextView textView = new TextView(MainActivity.this);
-					textView.setText(webview.getTitle() + "\n" + webview.getUrl());
+					textView.setText(String.format("%s\n%s", webview.getTitle(), webview.getUrl()));
 					textView.setPadding(50, 20, 50, 20);
 					boolean addOrRemoveData = bookmarkDialog.containsUrl(webview.getUrl());
 					new AlertDialog.Builder(MainActivity.this)
@@ -516,9 +547,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 							}
 							dialog.dismiss();
 						}))
-						.setNegativeButton(R.string.cancel, ((dialog, which) -> {
-							dialog.dismiss();
-						})).create().show();
+						.setNegativeButton(R.string.cancel, ((dialog, which) -> dialog.dismiss())).create().show();
 				} catch (Exception e) {
 					e.printStackTrace();
 					Log.e(TAG, "onOptionsItemSelected: " + e.getMessage());
@@ -527,9 +556,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 			case R.id.iv_search: // show search dialog
 				showSearchDialog();
 				break;
+			case R.id.fab_main:
+				Log.d(TAG, "onClick: fab main " + relatedArticlesPopupWindow.isShowing());
+				fabMain.setEnabled(false);
+				relatedArticlesPopupWindow.showAtLocation(clMain, Gravity.BOTTOM | Gravity.RIGHT, 20, fabMain.getPaddingBottom() + fabMain.getHeight() + 20);
+				break;
 		}
 	}
 
+	@SuppressLint("RestrictedApi")
 	@Override
 	public boolean handleMessage(Message msg) {
 		switch (msg.what) {
@@ -539,6 +574,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 				progressBar.setVisibility(View.VISIBLE);
 				handler.removeCallbacks(autoHideLoading);
 				handler.postDelayed(autoHideLoading, AUTO_HIDE_TIMEOUT);
+				if (relatedArticlesPopupWindow != null) {
+					relatedArticlesPopupWindow.dismiss();
+				}
 				break;
 			case HIDE_LOADING:
 				Log.d(TAG, "handleMessage: HIDE_LOADING");
@@ -588,10 +626,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 						webview.loadUrl(url);
 					});
 				break;
-			case REFRESH_BOOKMAEK: // refresh bookmark
+			case REFRESH_BOOKMARK: // refresh bookmark
 				if (ivBookmark != null && webview != null) {
 					ivBookmark.setImageResource(bookmarkDialog.containsUrl(webview.getUrl()) ? R.drawable.ic_bookmark_full_dark : R.drawable.ic_bookmark_empty);
 //					ivBookmark.setEnabled(!bookmarkDialog.containsUrl(webview.getUrl()));
+				}
+				break;
+			case REFRESH_FAB_LINK:
+				if (fabMain != null) {
+					fabMain.setVisibility(allRelatedArticles.isEmpty() ? View.GONE : View.VISIBLE);
 				}
 				break;
 		}

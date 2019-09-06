@@ -8,10 +8,28 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import cn.jinelei.smart.archwiki.models.BookmarkModel;
 import cn.jinelei.smart.archwiki.models.LanguageModel;
 
 public class ModelUtils {
-	
+
+	public static List<BookmarkModel> convertStringToBookmarkModelList(String val) {
+		try {
+			return Stream.of(val)
+				.filter(s -> !s.equals("[]") && s.matches("\\[.*]"))
+				.map(s -> s.substring(1, s.length() - 1))
+				.flatMap(s -> Stream.of(s.split(",")))
+				.filter(s -> !s.equals("\"\""))
+				.map(s -> s.substring(1, s.length() - 1))
+				.map(s -> s.split("\\^"))
+				.filter(s -> s.length >= 2)
+				.map(ss -> new BookmarkModel(ss[0], ss[1]))
+				.collect(Collectors.toList());
+		} catch (Exception e) {
+			return new ArrayList<>();
+		}
+	}
+
 	public static List<LanguageModel> convertStringToLanguageModelList(String val) {
 		try {
 			return Stream.of(val)
@@ -28,7 +46,7 @@ public class ModelUtils {
 			return new ArrayList<>();
 		}
 	}
-	
+
 	public static boolean containsLanguageModel(Collection<LanguageModel> models, LanguageModel languageModel) {
 		if (null == languageModel
 			|| Strings.isNullOrEmpty(languageModel.getDetailLang())
@@ -43,5 +61,5 @@ public class ModelUtils {
 		}
 		return false;
 	}
-	
+
 }
