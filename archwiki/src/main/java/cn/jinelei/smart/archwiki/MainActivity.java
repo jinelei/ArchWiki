@@ -45,11 +45,14 @@ import androidx.core.content.ContextCompat;
 import com.google.common.base.Strings;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
+import cn.jinelei.smart.archwiki.common.constants.CommonConstants;
 import cn.jinelei.smart.archwiki.common.utils.BitmapUtils;
 import cn.jinelei.smart.archwiki.common.utils.CommonUtils;
+import cn.jinelei.smart.archwiki.common.utils.FileUtils;
 import cn.jinelei.smart.archwiki.common.utils.ModelUtils;
 import cn.jinelei.smart.archwiki.common.utils.SharedUtils;
 import cn.jinelei.smart.archwiki.models.BookmarkModel;
@@ -72,9 +75,10 @@ import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener, Handler.Callback, NetworkStateObserver {
 	private static final String TAG = "MainActivity";
-	private static final String ARCH_URI;
-	private static final String JS_SRC_RULE;
-	private static final List<String> ALL_JAVASCRIPT_FUNCTION;
+	//		ARCH_URI = "file:///android_asset/web/index.html";
+	private static final String ARCH_URI = "https://wiki.archlinux.org/index.php/Main_page";
+	private static final String WEB_JS_ARCHWIKI_JS = "web/js/archwiki.js";
+	private static final String JS_SRC_RULE = CommonConstants.Javascript.JS_SRC_RULE;
 	private static final long AUTO_HIDE_TIMEOUT = 5000;
 	private BookmarkDialog bookmarkDialog;
 	private ActionBar supportActionBar;
@@ -150,12 +154,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 				if (shouldInjectJavaScript()) {
 					// step 1: inject all javascript
 					view.evaluateJavascript(String.format(JS_SRC_RULE,
-						ALL_JAVASCRIPT_FUNCTION.stream().reduce("", (s, s2) -> s + s2)),
+						FileUtils.getFromAssets(MainActivity.this, WEB_JS_ARCHWIKI_JS)),
 						value -> {
 							Log.d(TAG, "step 1: inject javascript success");
 							// step 2: query all available language
 							if (shouldFindAllLanguage()) {
-								webview.evaluateJavascript("javascript:findAllLanguageAll()", val -> {
+								webview.evaluateJavascript(CommonConstants.Javascript.INVOKE_findAllLanguage, val -> {
 									List<LanguageModel> collect = ModelUtils.convertStringToLanguageModelList(val);
 									Log.d(TAG, "step 2: find all language success");
 									Log.v(TAG, "findAllLanguageAll: " + collect);
@@ -164,7 +168,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 							}
 							// step 3: should hide some elements
 							if (shouldHideElements()) {
-								webview.evaluateJavascript("javascript:autoHideElement()", value1 -> Log.d(TAG, "step 3: auto hide elements success"));
+								webview.evaluateJavascript(CommonConstants.Javascript.INVOKE_autoHideElements, value1 -> Log.d(TAG, "step 3: auto hide elements success"));
+							}
+							if (shouldShowRelatedArticles()) {
+								webview.evaluateJavascript(CommonConstants.Javascript.INVOKE_findAllRelatedArticles, value2 -> Log.d(TAG, "step 4: find all related articles " + value2));
 							}
 							handler.sendEmptyMessage(HIDE_LOADING);
 						});
@@ -182,6 +189,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 			}
 		}
 	};
+
+	private boolean shouldShowRelatedArticles() {
+		return true;
+	}
+
 	private final WebChromeClient webChromeClient = new WebChromeClient() {
 		@Override
 		public void onReceivedIcon(WebView view, Bitmap icon) {
@@ -236,42 +248,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 			return true;
 		}
 	};
-
-	static {
-//		ARCH_URI = "file:///android_asset/web/index.html";
-		ALL_JAVASCRIPT_FUNCTION = new ArrayList<>();
-		ARCH_URI = "https://wiki.archlinux.org/index.php/Main_page";
-		JS_SRC_RULE = "var obj = document.createElement(\"script\");"
-			+ "obj.type=\"text/javascript\";"
-			+ "obj.innerText=\"%s\";"
-			+ "document.body.appendChild(obj);";
-		ALL_JAVASCRIPT_FUNCTION.add(
-			"function findAllLanguageAll(){" +
-				"    var allLanguageNodeList = document.querySelectorAll('a.interlanguage-link-target');" +
-				"    var allLanguageString = Array.from(allLanguageNodeList).flatMap(ele => ele.lang + '^' + ele.innerText + '^' + ele.href);" +
-				"    return allLanguageString;" +
-				"};"
-		);
-		ALL_JAVASCRIPT_FUNCTION.add(
-			"function autoHideElement() {" +
-				"    var eles = ['div#p-lang', 'div#mw-navigation'," +
-				"        'div#mw-head-base', 'div#mw-page-base'," +
-				"        'div#archnavbar', 'div#footer'];" +
-				"    for (var i in eles) {" +
-				"        var temp = document.querySelector(eles[i]);" +
-				"        if (!!temp) {" +
-				"            temp.style.display = 'none';" +
-				"        }" +
-				"    }" +
-				"};"
-		);
-		ALL_JAVASCRIPT_FUNCTION.add(
-			"function searchKey(key){" +
-				"    document.querySelector('input#searchInput').value = key;" +
-				"    document.querySelector('input#searchButton').click();" +
-				"};"
-		);
-	}
 
 	private NetworkStateReceiver networkStateReceiver;
 
@@ -434,7 +410,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 			.setView(ll)
 			.setPositiveButton(R.string.search, (dialog, which) -> {
 				if (!Strings.isNullOrEmpty(editText.getText().toString())) {
-					webview.evaluateJavascript("javascript:searchKey('" + editText.getText() + "')",
+					webview.evaluateJavascript(String.format(CommonConstants.Javascript.INVOKE_searchKey, editText.getText().toString()),
 						value -> Log.d(TAG, "searchKey: " + editText.getText()));
 				}
 			})
