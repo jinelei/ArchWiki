@@ -1,7 +1,6 @@
 package cn.jinelei.smart.archwiki;
 
 import android.Manifest;
-import android.content.BroadcastReceiver;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
@@ -21,7 +20,6 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
-import android.webkit.JavascriptInterface;
 import android.webkit.JsPromptResult;
 import android.webkit.JsResult;
 import android.webkit.WebChromeClient;
@@ -54,9 +52,10 @@ import cn.jinelei.smart.archwiki.common.utils.BitmapUtils;
 import cn.jinelei.smart.archwiki.common.utils.CommonUtils;
 import cn.jinelei.smart.archwiki.common.utils.ModelUtils;
 import cn.jinelei.smart.archwiki.common.utils.SharedUtils;
-import cn.jinelei.smart.archwiki.intf.IJavaScriptInterface;
 import cn.jinelei.smart.archwiki.models.BookmarkModel;
 import cn.jinelei.smart.archwiki.models.LanguageModel;
+import cn.jinelei.smart.archwiki.models.NetworkType;
+import cn.jinelei.smart.archwiki.receiver.NetworkStateObserver;
 import cn.jinelei.smart.archwiki.receiver.NetworkStateReceiver;
 import cn.jinelei.smart.archwiki.views.BookmarkDialog;
 import cn.jinelei.smart.archwiki.views.LanguagePopupWindow;
@@ -71,7 +70,7 @@ import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler
 import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.SHOW_LOADING;
 import static cn.jinelei.smart.archwiki.common.constants.CommonConstants.Handler.TIMEOUT_HIDE_LOADING;
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener, Handler.Callback {
+public class MainActivity extends AppCompatActivity implements View.OnClickListener, Handler.Callback, NetworkStateObserver {
 	private static final String TAG = "MainActivity";
 	private static final String ARCH_URI;
 	private static final String JS_SRC_RULE;
@@ -93,19 +92,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 		}
 	};
 	private final Handler handler = new Handler(Looper.getMainLooper(), this);
-	private final IJavaScriptInterface javaScriptInterface = new IJavaScriptInterface() {
-		@JavascriptInterface
-		public void startFunction() {
-			Log.d(TAG, "js调用了java函数");
-			Toast.makeText(MainActivity.this, "js调用了java函数", Toast.LENGTH_SHORT).show();
-		}
-
-		@JavascriptInterface
-		public void startFunction(final String str) {
-			Log.d(TAG, "js调用了java函数传递参数: " + str);
-			Toast.makeText(MainActivity.this, "js调用了java函数传递参数: " + str, Toast.LENGTH_SHORT).show();
-		}
-	};
 	private final WebViewClient webViewClient = new WebViewClient() {
 		@Override
 		public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
@@ -294,30 +280,27 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 		requestPermissions();
+		initNetworkStateReceiver();
 		initView();
 		initEvent();
 		init();
 	}
 
-	//在onResume()方法注册
-	@Override
-	protected void onResume() {
-		if (networkStateReceiver == null) {
-			networkStateReceiver = new NetworkStateReceiver();
-		}
+	private void initNetworkStateReceiver() {
+		networkStateReceiver = new NetworkStateReceiver();
+		networkStateReceiver.registerNetworkStateObserver(this);
 		IntentFilter filter = new IntentFilter();
 		filter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
 		registerReceiver(networkStateReceiver, filter);
-		System.out.println("注册");
-		super.onResume();
 	}
 
-	//onPause()方法注销
 	@Override
-	protected void onPause() {
-		unregisterReceiver(networkStateReceiver);
-		System.out.println("注销");
-		super.onPause();
+	protected void onDestroy() {
+		super.onDestroy();
+		if (networkStateReceiver != null) {
+			networkStateReceiver.unregisterNetworkStateObserver(this);
+			unregisterReceiver(networkStateReceiver);
+		}
 	}
 
 	private void init() {
@@ -335,13 +318,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 		initBookmark();
 	}
 
-	private void initWebView(){
+	private void initWebView() {
 		webview.setHorizontalScrollBarEnabled(false);
 		webview.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
 		WebView.setWebContentsDebuggingEnabled(true);
 		webview.setWebViewClient(webViewClient);
 		webview.setWebChromeClient(webChromeClient);
-		webview.addJavascriptInterface(javaScriptInterface, "javaScriptInterface");
 
 		WebSettings setting = webview.getSettings();
 		setting.setUseWideViewPort(true);
@@ -409,7 +391,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 				Manifest.permission.INTERNET)) {
 				Toast.makeText(MainActivity.this, "拒绝了该请求", Toast.LENGTH_SHORT).show();
 			} else {
-				ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA,}, 1);
+				ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.INTERNET,}, 1);
 			}
 		}
 	}
@@ -638,5 +620,35 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 				break;
 		}
 		return true;
+	}
+
+	@Override
+	public void onNetworkChanged(NetworkType networkType) {
+		switch (networkType) {
+			case CONNECT_WIFI_AND_CELLULAR:
+			case CONNECT_WIFI_DISCONNECT_CELLULAR:
+				if (webview != null) {
+					WebSettings settings = webview.getSettings();
+					settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+					Log.d(TAG, "onNetworkChanged: set cache: LOAD_DEFAULT");
+				}
+				break;
+			case DISCONNECT_WIFI_CONNECT_CELLULAR:
+				if (webview != null) {
+					WebSettings settings = webview.getSettings();
+					settings.setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
+					Log.d(TAG, "onNetworkChanged: set cache: LOAD_CACHE_ELSE_NETWORK");
+				}
+				break;
+			case DISCONNECT_WIFI_AND_CELLULAR:
+				if (webview != null) {
+					WebSettings settings = webview.getSettings();
+					settings.setCacheMode(WebSettings.LOAD_CACHE_ONLY);
+					Log.d(TAG, "onNetworkChanged: set cache: LOAD_CACHE_ONLY");
+				}
+				break;
+			default:
+				break;
+		}
 	}
 }

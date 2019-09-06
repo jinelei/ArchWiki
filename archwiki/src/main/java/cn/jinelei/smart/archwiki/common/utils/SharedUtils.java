@@ -14,7 +14,8 @@ public class SharedUtils {
 	private static final String TAG = "SharedUtils";
 	public static final String DEFAULT_NAME = "DEFAULT_NAME";
 	public static final String TAG_ALL_BOOKMARK = "TAG_ALL_BOOKMARK";
-	
+	public static final String TAG_NETWORK = "TAG_NETWORK";
+
 	/**
 	 * 保存数据的方法，我们需要拿到保存数据的具体类型，然后根据类型调用不同的保存方法
 	 *
