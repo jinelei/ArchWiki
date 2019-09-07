@@ -2,7 +2,7 @@ apply plugin: 'com.android.application'
 
 def appVersionCode = 1000 // gitVersionCode
 def appVersionName = "1.0.0" // gitVersionNanme
-def appVersionNameInternal = "\"1.0.0.2\""
+def appVersionNameInternal = "\"1.0.0.3\""
 
 android {
     compileSdkVersion 28
