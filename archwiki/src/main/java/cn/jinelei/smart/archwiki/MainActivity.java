@@ -365,7 +365,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 		MainActivity.this.getWindowManager().getDefaultDisplay().getSize(windowSize);
 		languagePopupWindow.setHeight(windowSize.y / 5 * 2);
 		relatedArticlesPopupWindow = new RelatedArticlesPopupWindow(MainActivity.this);
-		relatedArticlesPopupWindow.setOnDismissListener(() -> fabMain.postDelayed(()->fabMain.setEnabled(true), 500));
+		relatedArticlesPopupWindow.setOnDismissListener(() -> fabMain.postDelayed(()->fabMain.setEnabled(true), 200));
 		relatedArticlesPopupWindow.setOutsideTouchable(true);
 		relatedArticlesPopupWindow.setHandler(handler);
 		relatedArticlesPopupWindow.setWidth(WindowManager.LayoutParams.WRAP_CONTENT);

@@ -59,7 +59,7 @@ public class RelatedArticlesPopupWindow extends PopupWindow {
 		setContentView(rootView);
 		rvRelatedArticles.setLayoutManager(new LinearLayoutManager(context));
 		rvRelatedArticles.setAdapter(adapter);
-		this.setAnimationStyle(R.style.popupWindowAnimStyle);
+		this.setAnimationStyle(R.style.relatedArticlesPopupWindowAnimStyle);
 	}
 
 	public void setHandler(Handler handler) {

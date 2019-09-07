@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="colorPrimary">#1793d1</color>
-    <color name="colorPrimaryDark">#044E74</color>
+    <color name="colorPrimaryDark">#16709E</color>
     <color name="ic_launcher_background">#1793d1</color>
-    <color name="colorAccent">#D81B60</color>
+    <color name="colorAccent">#999999</color>
     <color name="buttonUnpressed">#cccccc</color>
     <color name="buttonPressed">#aaaaaa</color>
 </resources>
