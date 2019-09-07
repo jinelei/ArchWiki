@@ -2,7 +2,7 @@
 <resources>
     <color name="colorPrimary">#1793d1</color>
     <color name="colorPrimaryDark">#16709E</color>
-    <color name="ic_launcher_background">#1793d1</color>
+    <color name="ic_launcher_background">#1793D1</color>
     <color name="colorAccent">#999999</color>
     <color name="buttonUnpressed">#cccccc</color>
     <color name="buttonPressed">#aaaaaa</color>
